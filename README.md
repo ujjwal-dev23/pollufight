@@ -24,8 +24,14 @@ Clone your fork of the repo
 git clone https://github.com/YOUR-USERNAME/pollufight.git
 cd pollufight
 ```
-Install dependencies and run the dev server
+Install dependencies
 ```bash
 npm install
+pip install -r src-backend/requirements.txt
+```
+Run the backend and frontend servers
+```bash
+# Python Backend
+python src-backend/main.py
 npm run dev
 ```
