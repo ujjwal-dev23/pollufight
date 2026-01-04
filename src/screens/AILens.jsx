@@ -4,19 +4,55 @@ import { Camera, RotateCcw, UploadCloud, ShieldAlert, Zap, X, AlertCircle, Shiel
 
 // Added { onReportSuccess } prop from App.jsx
 const AILens = ({ onReportSuccess }) => {
+  const CLOUDINARY_UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
+  const CLOUDINARY_CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
+
   const navigate = useNavigate();
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
 
   const [stream, setStream] = useState(null);
   const [capturedImage, setCapturedImage] = useState(null);
-  const [status, setStatus] = useState('idle'); 
+  const [status, setStatus] = useState('idle');
   const [errorMsg, setErrorMsg] = useState('');
   const [showDetection, setShowDetection] = useState(false); // New state for AI box
+
+  const [uploadedUrl, setUploadedUrl] = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
+
+  const uploadToCloudinary = async (imageDataUrl) => {
+    setIsUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', imageDataUrl);
+      formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+
+      const response = await fetch(
+        `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`,
+        { method: 'POST', body: formData }
+      );
+
+      const data = await response.json();
+      if (data.secure_url) {
+        console.log("Background Upload Success:", data.secure_url);
+        setUploadedUrl(data.secure_url);
+      } else {
+        throw new Error(data.error?.message || "Upload failed");
+      }
+    } catch (err) {
+      console.error("Background Upload Error:", err);
+      // We don't block the UI yet; we catch the error when they try to Verify
+      setErrorMsg("Background upload failed. Please retake.");
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
   const startCamera = useCallback(async () => {
     setStatus('idle');
     setErrorMsg('');
+    setUploadedUrl(null);
+    setIsUploading(false);
     setShowDetection(false);
 
     try {
@@ -38,7 +74,7 @@ const AILens = ({ onReportSuccess }) => {
     return () => stream?.getTracks().forEach(track => track.stop());
   }, [startCamera]);
 
-  const handleCapture = () => {
+  const handleCapture = async () => {
     const video = videoRef.current;
     const canvas = canvasRef.current;
     if (video && canvas) {
@@ -46,13 +82,14 @@ const AILens = ({ onReportSuccess }) => {
       canvas.height = video.videoHeight;
       const ctx = canvas.getContext('2d');
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      setCapturedImage(canvas.toDataURL('image/jpeg', 0.8));
-      
+
+      const imageDataUrl = canvas.toDataURL('image/jpeg', 0.8);
+      setCapturedImage(imageDataUrl);
+
       stream?.getTracks().forEach(track => track.stop());
       setStream(null);
 
-      // Trigger AI Detection box after 800ms for "Scanning" feel
-      setTimeout(() => setShowDetection(true), 800);
+      uploadToCloudinary(imageDataUrl);
     }
   };
 
@@ -62,18 +99,38 @@ const AILens = ({ onReportSuccess }) => {
     startCamera();
   };
 
-  const handleUpload = () => {
-    setStatus('scanning');
-    setTimeout(() => {
-      // --- THE BRAIN TRIGGER ---
-      onReportSuccess(); // Updates Dashboard and Wallet in App.jsx
+  const handleVerify = async () => {
+    // If the upload is already done, proceed immediately
+    if (uploadedUrl) {
+      onReportSuccess(uploadedUrl);
       navigate('/success');
-    }, 3500);
+    }
+    // If still uploading, set status to 'scanning' (loading UI)
+    // The useEffect below will watch for when the upload finishes
+    else if (isUploading) {
+      setStatus('scanning');
+    }
+    // If upload failed or didn't start
+    else {
+      setErrorMsg("Upload failed. Please Retake.");
+    }
   };
+
+  useEffect(() => {
+    if (status === 'scanning' && uploadedUrl) {
+      // Small delay to let the user see the "Scanning" animation briefly 
+      // (optional, simply for better UX feel)
+      const timer = setTimeout(() => {
+        onReportSuccess(uploadedUrl);
+        navigate('/success');
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [status, uploadedUrl, onReportSuccess, navigate]);
 
   return (
     <div className="relative h-screen bg-black overflow-hidden flex flex-col font-sans">
-      
+
       <div className="relative flex-1 bg-slate-950 overflow-hidden flex items-center justify-center">
         {!capturedImage ? (
           <>
@@ -88,7 +145,7 @@ const AILens = ({ onReportSuccess }) => {
         ) : (
           <div className="relative w-full h-full">
             <img src={capturedImage} alt="Preview" className="w-full h-full object-cover opacity-80" />
-            
+
             {/* --- AI DETECTION BOUNDING BOX --- */}
             {showDetection && (
               <div className="absolute top-1/4 left-1/4 w-1/2 h-1/3 border-2 border-red-500 rounded-sm animate-in zoom-in duration-300">
@@ -98,7 +155,7 @@ const AILens = ({ onReportSuccess }) => {
                 </div>
                 <div className="absolute -top-1 -left-1 w-3 h-3 border-t-2 border-l-2 border-white" />
                 <div className="absolute -bottom-1 -right-1 w-3 h-3 border-b-2 border-r-2 border-white" />
-                
+
                 {/* Confidence Badge */}
                 <div className="absolute -bottom-6 right-0 text-[8px] font-mono text-red-400 bg-black/60 px-2">
                   CONFIDENCE: 98.4%
@@ -136,7 +193,7 @@ const AILens = ({ onReportSuccess }) => {
               <RotateCcw size={16} />
               <span>Retake</span>
             </button>
-            <button onClick={handleUpload} disabled={status === 'scanning'} className="flex-[2] bg-emerald-500 text-slate-900 h-14 rounded-2xl flex items-center justify-center space-x-2 font-black uppercase text-[11px] shadow-lg shadow-emerald-500/20 active:scale-95 transition-all">
+            <button onClick={handleVerify} disabled={status === 'scanning'} className="flex-[2] bg-emerald-500 text-slate-900 h-14 rounded-2xl flex items-center justify-center space-x-2 font-black uppercase text-[11px] shadow-lg shadow-emerald-500/20 active:scale-95 transition-all">
               {status === 'scanning' ? <Zap size={16} className="animate-spin" /> : <><UploadCloud size={18} /><span>Verify & File</span></>}
             </button>
           </div>
