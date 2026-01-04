@@ -1,7 +1,19 @@
-# Tauri + React + Typescript
+# How to Contribute
 
-This template should help get you started developing with Tauri, React and Typescript in Vite.
+To keep the main code stable, we use a **Fork & Pull Request** workflow.
 
-## Recommended IDE Setup
+### 1. Initial Setup
+* **Fork** this repository to your own GitHub account.
+* **Clone** your fork: `git clone https://github.com/YOUR-USERNAME/repo-name.git`
+* **Add Upstream**: `git remote add upstream https://github.com/ORIGINAL-OWNER/repo-name.git`
 
-- [VS Code](https://code.visualstudio.com/) + [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) + [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)
+### 2. Working on a Task
+1. **Sync:** `git checkout main` && `git pull upstream main`
+2. **Create Feature Branch:** `git checkout -b feature-name`
+3. **Commit:** `git add .` && `git commit -m "Description of work"`
+4. **Push:** `git push origin feature-name`
+
+### 3. Submit Your Work
+* Go to the **original repository** on GitHub.
+* Click **"Compare & pull request"**.
+* Describe your changes and submit for review!
