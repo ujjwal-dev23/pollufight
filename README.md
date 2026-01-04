@@ -17,3 +17,10 @@ To keep the main code stable, we use a **Fork & Pull Request** workflow.
 * Go to the **original repository** on GitHub.
 * Click **"Compare & pull request"**.
 * Describe your changes and submit for review!
+
+# Project Setup
+```bash
+cd pollufight
+npm install
+npm run dev
+```
