@@ -24,8 +24,12 @@ const AILens = ({ onReportSuccess }) => {
   const uploadToCloudinary = async (imageDataUrl) => {
     setIsUploading(true);
     try {
+      // Convert data URL to Blob for Cloudinary upload
+      const blobResponse = await fetch(imageDataUrl);
+      const blob = await blobResponse.blob();
+
       const formData = new FormData();
-      formData.append('file', imageDataUrl);
+      formData.append('file', blob, 'image.jpg');
       formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
 
       const response = await fetch(
@@ -96,6 +100,9 @@ const AILens = ({ onReportSuccess }) => {
       stream?.getTracks().forEach(track => track.stop());
       setStream(null);
 
+      // Trigger AI Detection box after 800ms for "Scanning" feel
+      setTimeout(() => setShowDetection(true), 800);
+
       uploadToCloudinary(imageDataUrl);
     }
   };
@@ -142,7 +149,7 @@ const AILens = ({ onReportSuccess }) => {
         {!capturedImage ? (
           <>
             <video ref={videoRef} autoPlay playsInline className="absolute inset-0 w-full h-full object-cover grayscale-[0.2]" />
-            <div className="absolute inset-0 border-[20px] border-black/20 pointer-events-none">
+            <div className="absolute inset-0 border-20 border-black/20 pointer-events-none">
               <div className="absolute top-10 left-10 w-8 h-8 border-t-2 border-l-2 border-emerald-500" />
               <div className="absolute top-10 right-10 w-8 h-8 border-t-2 border-r-2 border-emerald-500" />
               <div className="absolute bottom-10 left-10 w-8 h-8 border-b-2 border-l-2 border-emerald-500" />
@@ -188,8 +195,8 @@ const AILens = ({ onReportSuccess }) => {
           <div className="relative flex items-center justify-center w-full">
             <button onClick={handleCapture} className="group relative">
               <div className="absolute -inset-2 bg-emerald-500/20 rounded-full blur-md group-active:scale-90" />
-              <div className="relative w-20 h-20 rounded-full border-[4px] border-white/30 flex items-center justify-center">
-                <div className="w-16 h-16 bg-white rounded-full border-[4px] border-slate-900 shadow-xl" />
+              <div className="relative w-20 h-20 rounded-full border-4 border-white/30 flex items-center justify-center">
+                <div className="w-16 h-16 bg-white rounded-full border-4 border-slate-900 shadow-xl" />
               </div>
             </button>
             <span className="absolute -bottom-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">Identify Threat</span>
@@ -200,7 +207,7 @@ const AILens = ({ onReportSuccess }) => {
               <RotateCcw size={16} />
               <span>Retake</span>
             </button>
-            <button onClick={handleVerify} disabled={status === 'scanning'} className="flex-[2] bg-emerald-500 text-slate-900 h-14 rounded-2xl flex items-center justify-center space-x-2 font-black uppercase text-[11px] shadow-lg shadow-emerald-500/20 active:scale-95 transition-all">
+            <button onClick={handleVerify} disabled={status === 'scanning'} className="flex-2 bg-emerald-500 text-slate-900 h-14 rounded-2xl flex items-center justify-center space-x-2 font-black uppercase text-[11px] shadow-lg shadow-emerald-500/20 active:scale-95 transition-all">
               {status === 'scanning' ? <Zap size={16} className="animate-spin" /> : <><UploadCloud size={18} /><span>Verify & File</span></>}
             </button>
           </div>
