@@ -1,29 +1,34 @@
 import React, { useState, useEffect } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, Circle } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, Circle, FeatureGroup } from 'react-leaflet';
 import L from 'leaflet';
-import { AlertTriangle, Factory, Construction, Navigation, Info, Loader2, CheckCircle2, Clock } from 'lucide-react';
-import { subscribeToReports, updateReportStatus } from '../services/pollutionReports';
+import { AlertTriangle, Factory, Construction, Navigation, Info, Loader2, CheckCircle2, Clock, Plus } from 'lucide-react';
+import { subscribeToReports, updateReportStatus, createReport } from '../services/pollutionReports';
 
 // Custom Marker Creator with Glowing Aura
 const createMarkerIcon = (color) => {
   // Map status to color hex codes
   const colorMap = {
-    red: '#ef4444',
-    orange: '#f97316',
-    green: '#10b981'
+    red: '#ff3333',    // Red for detected
+    orange: '#ff8800', // Orange for in progress
+    green: '#22c55e'   // Green for resolved
   };
 
   const colorHex = colorMap[color] || colorMap.red;
+  // Convert hex to RGB for rgba usage
+  const r = parseInt(colorHex.slice(1, 3), 16);
+  const g = parseInt(colorHex.slice(3, 5), 16);
+  const b = parseInt(colorHex.slice(5, 7), 16);
 
   return L.divIcon({
     className: 'custom-div-icon',
     html: `
       <div class="relative flex items-center justify-center">
-        <div class="absolute w-8 h-8 rounded-full animate-ping" style="background-color: ${colorHex}30;"></div>
-        <div class="relative w-4 h-4 rounded-full border-2 border-white shadow-[0_0_10px_rgba(0,0,0,0.5)]" style="background-color: ${colorHex};"></div>
+        <div class="absolute w-10 h-10 rounded-full animate-ping" style="background-color: rgba(${r}, ${g}, ${b}, 0.6);"></div>
+        <div class="absolute w-6 h-6 rounded-full" style="background-color: rgba(${r}, ${g}, ${b}, 0.4); box-shadow: 0 0 20px rgba(${r}, ${g}, ${b}, 0.8);"></div>
+        <div class="relative w-5 h-5 rounded-full border-2 border-white" style="background-color: ${colorHex}; box-shadow: 0 0 15px rgba(${r}, ${g}, ${b}, 1), 0 0 30px rgba(${r}, ${g}, ${b}, 0.6);"></div>
       </div>`,
-    iconSize: [30, 30],
-    iconAnchor: [15, 15]
+    iconSize: [40, 40],
+    iconAnchor: [20, 20]
   });
 };
 
@@ -38,6 +43,20 @@ const getStatusColor = (status) => {
       return 'green';
     default:
       return 'red';
+  }
+};
+
+// Get vibrant color hex for circles and overlays
+const getStatusColorHex = (status) => {
+  switch (status) {
+    case 'detected':
+      return '#ff3333'; // Red for detected
+    case 'in_progress':
+      return '#ff8800'; // Orange for in progress
+    case 'resolved':
+      return '#22c55e'; // Green for resolved (more standard green)
+    default:
+      return '#ff3333'; // Default to red
   }
 };
 
@@ -128,6 +147,7 @@ const MapView = () => {
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
   const [updatingStatus, setUpdatingStatus] = useState(null); // Track which report is being updated
+  const [isAddingTestSpot, setIsAddingTestSpot] = useState(false);
 
   useEffect(() => {
     // Subscribe to real-time updates
@@ -183,6 +203,43 @@ const MapView = () => {
     report => report.status === 'detected' || report.status === 'in_progress'
   ).length;
 
+  // Test function to add a new spot to Firestore
+  const handleAddTestSpot = async () => {
+    setIsAddingTestSpot(true);
+    try {
+      // Add a test spot near the existing demo spots
+      // Using coordinates between demo-1 and demo-2
+      const testLocation = {
+        latitude: 28.4625, // Between 28.4744 and 28.4505
+        longitude: 77.0459, // Between 77.0652 and 77.0266
+        accuracy: 10
+      };
+
+      const result = await createReport({
+        location: testLocation,
+        imageUrl: 'https://via.placeholder.com/800x600/ff3333/ffffff?text=Test+Pollution+Report',
+        metadata: {
+          site: 'Test Location - Cyber City',
+          type: 'Industrial',
+          test: true
+        }
+      });
+
+      if (result.success) {
+        console.log('Test spot added successfully:', result.reportId);
+        alert('Test spot added successfully! It should appear on the map shortly.');
+      } else {
+        console.error('Failed to add test spot:', result.error);
+        alert(`Failed to add test spot: ${result.error}`);
+      }
+    } catch (error) {
+      console.error('Error adding test spot:', error);
+      alert(`Error: ${error.message}`);
+    } finally {
+      setIsAddingTestSpot(false);
+    }
+  };
+
   return (
     <div className="h-screen w-full relative bg-[#0f172a] pb-24 overflow-hidden">
       {/* Top HUD Overlay */}
@@ -194,8 +251,29 @@ const MapView = () => {
               {loading ? 'Loading...' : `${activeViolations} active violation${activeViolations !== 1 ? 's' : ''}`}
             </p>
           </div>
-          <div className="bg-slate-800/80 p-2 rounded-xl border border-slate-700">
-            <Navigation className="text-white" size={18} />
+          <div className="flex items-center space-x-3">
+            {/* Test Button - Remove in production */}
+            <button
+              onClick={handleAddTestSpot}
+              disabled={isAddingTestSpot}
+              className="bg-blue-500/80 hover:bg-blue-500 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2 transition-all"
+              title="Add test spot to Firestore"
+            >
+              {isAddingTestSpot ? (
+                <>
+                  <Loader2 size={14} className="animate-spin" />
+                  <span>Adding...</span>
+                </>
+              ) : (
+                <>
+                  <Plus size={14} />
+                  <span>Test Spot</span>
+                </>
+              )}
+            </button>
+            <div className="bg-slate-800/80 p-2 rounded-xl border border-slate-700">
+              <Navigation className="text-white" size={18} />
+            </div>
           </div>
         </div>
 
@@ -231,19 +309,24 @@ const MapView = () => {
 
         {reports.map((report) => {
           const statusColor = getStatusColor(report.status);
-          const colorHex = statusColor === 'red' ? '#ef4444' : statusColor === 'orange' ? '#f97316' : '#10b981';
-          const position = [report.location.latitude, report.location.longitude];
+          const colorHex = getStatusColorHex(report.status);
+          // Leaflet uses [lat, lng] format - ensure consistent position reference
+          const lat = report.location.latitude;
+          const lng = report.location.longitude;
+          const position = [lat, lng];
 
           return (
-            <React.Fragment key={report.id}>
+            <FeatureGroup key={report.id}>
               {/* Heat Ring Overlay */}
               <Circle
                 center={position}
                 radius={500}
                 pathOptions={{
                   fillColor: colorHex,
-                  color: 'transparent',
-                  fillOpacity: 0.15
+                  color: colorHex,
+                  fillOpacity: 0.3,
+                  weight: 2,
+                  opacity: 0.5
                 }}
               />
 
@@ -255,11 +338,11 @@ const MapView = () => {
                   <div className="p-3 w-56 bg-slate-900 text-white rounded-xl">
                     <div className="flex items-center space-x-2 mb-2">
                       {report.status === 'resolved' ? (
-                        <CheckCircle2 size={16} className="text-green-500" />
+                        <CheckCircle2 size={16} className="text-[#22c55e]" style={{ filter: 'drop-shadow(0 0 4px #22c55e)' }} />
                       ) : report.status === 'in_progress' ? (
-                        <Clock size={16} className="text-orange-500" />
+                        <Clock size={16} className="text-[#ff8800]" style={{ filter: 'drop-shadow(0 0 4px #ff8800)' }} />
                       ) : (
-                        <Factory size={16} className="text-red-500" />
+                        <Factory size={16} className="text-[#ff3333]" style={{ filter: 'drop-shadow(0 0 4px #ff3333)' }} />
                       )}
                       <span className="font-black text-xs uppercase italic">
                         {getStatusDisplay(report.status)} Alert
@@ -269,10 +352,15 @@ const MapView = () => {
                     {/* Status Badge */}
                     <div className="mb-3">
                       <span
-                        className={`inline-block px-2 py-1 rounded text-[9px] font-black uppercase ${report.status === 'detected' ? 'bg-red-500/20 text-red-400' :
-                          report.status === 'in_progress' ? 'bg-orange-500/20 text-orange-400' :
-                            'bg-green-500/20 text-green-400'
+                        className={`inline-block px-3 py-1.5 rounded-md text-[9px] font-black uppercase ${report.status === 'detected' ? 'bg-red-500/30 text-red-300 border border-red-500/50' :
+                          report.status === 'in_progress' ? 'bg-orange-500/30 text-orange-300 border border-orange-500/50' :
+                            'bg-green-500/30 text-green-300 border border-green-500/50'
                           }`}
+                        style={{
+                          boxShadow: report.status === 'detected' ? '0 0 10px rgba(255, 51, 51, 0.4)' :
+                            report.status === 'in_progress' ? '0 0 10px rgba(255, 136, 0, 0.4)' :
+                              '0 0 10px rgba(34, 197, 94, 0.4)' // Updated to match #22c55e (rgb(34, 197, 94))
+                        }}
                       >
                         {getStatusDisplay(report.status)}
                       </span>
@@ -333,7 +421,7 @@ const MapView = () => {
                   </div>
                 </Popup>
               </Marker>
-            </React.Fragment>
+            </FeatureGroup>
           );
         })}
       </MapContainer>
