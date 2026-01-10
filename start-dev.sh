@@ -29,6 +29,11 @@ echo "🐍 Starting Pollution Detector Backend (Port 8000)..."
 uvicorn sub_modules.pollution_detector.main:app --host 0.0.0.0 --port 8000 --reload &
 BACKEND_PID=$!
 
+# Start Policy Feedback Backend
+echo "🏛️  Starting Policy Feedback Backend (Port 8001)..."
+uvicorn sub_modules.policy_feedback.backend.main:app --host 0.0.0.0 --port 8001 --reload &
+POLICY_PID=$!
+
 # Wait briefly for the server to initialize
 sleep 2
 
