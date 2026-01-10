@@ -8,6 +8,13 @@ from PIL import Image
 import io
 import requests
 
+import sys
+import os
+
+# Add current directory to sys.path to allow imports from local modules
+current_dir = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(current_dir)
+
 from detector import detect_pollution
 from drafter import generate_legal_draft
 
@@ -23,7 +30,11 @@ app.add_middleware(
 )
 
 # Mount Static Files
-app.mount("/static", StaticFiles(directory="static"), name="static")
+static_dir = os.path.join(current_dir, "static")
+if os.path.exists(static_dir):
+    app.mount("/static", StaticFiles(directory=static_dir), name="static")
+else:
+    print(f"Warning: Static directory not found at {static_dir}")
 
 class AnalysisResponse(BaseModel):
     pollution_type: str

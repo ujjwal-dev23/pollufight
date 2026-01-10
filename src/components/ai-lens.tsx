@@ -1,59 +1,82 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { Camera, RotateCcw, Upload, FileText, ScanLine, Activity } from "lucide-react"
+import { Camera, RotateCcw, Upload, FileText, ScanLine, Activity, AlertTriangle, CheckCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { uploadToCloudinary } from "@/services/cloudinary-service"
+import { analyzeImage, type AnalysisResult } from "@/services/pollution-service"
 
-type LensState = "capture" | "uploading" | "verified" | "success"
+type LensState = "capture" | "uploading" | "analyzing" | "verified" | "error"
 
 export function AILens() {
   const [state, setState] = useState<LensState>("capture")
   const [progress, setProgress] = useState(0)
+  const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null)
+  const [errorMsg, setErrorMsg] = useState<string>("")
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const handleCapture = () => {
-    setState("uploading")
-    setProgress(0)
-
-    const interval = setInterval(() => {
-      setProgress((prev) => {
-        if (prev >= 100) {
-          clearInterval(interval)
-          setTimeout(() => setState("verified"), 500)
-          return 100
-        }
-        return prev + 2
-      })
-    }, 50)
+    // For now, capture button also triggers upload as camera integration is separate/complex
+    fileInputRef.current?.click()
   }
 
-  const handleUpload = () => {
-    // Trigger file input click
-    const input = document.createElement("input")
-    input.type = "file"
-    input.accept = "image/*"
-    input.onchange = () => {
-      handleCapture()
+  const processFile = async (file: File) => {
+    try {
+      setState("uploading")
+      setProgress(10)
+
+      // Upload to Cloudinary
+      const imageUrl = await uploadToCloudinary(file)
+      setProgress(50)
+
+      setState("analyzing")
+
+      // Analyze with Pollution Detector
+      const result = await analyzeImage(imageUrl)
+      setAnalysisResult(result)
+      setProgress(100)
+
+      setState("verified")
+    } catch (err) {
+      console.error(err)
+      setErrorMsg(String(err))
+      setState("error")
     }
-    input.click()
   }
 
-  const handleContinue = () => {
-    setState("success")
+  const handleUploadClick = () => {
+    fileInputRef.current?.click()
+  }
+
+  const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      processFile(e.target.files[0])
+    }
   }
 
   const handleReset = () => {
     setState("capture")
     setProgress(0)
+    setAnalysisResult(null)
+    setErrorMsg("")
   }
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="h-full flex flex-col relative">
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={onFileChange}
+        accept="image/*"
+        className="hidden"
+      />
+
       <AnimatePresence mode="wait">
-        {state === "capture" && <CaptureView onCapture={handleCapture} onUpload={handleUpload} />}
-        {state === "uploading" && <UploadingView progress={progress} onRetake={handleReset} />}
-        {state === "verified" && <VerifiedView onContinue={handleContinue} onRetake={handleReset} />}
-        {state === "success" && <SuccessView onReset={handleReset} />}
+        {state === "capture" && <CaptureView onCapture={handleCapture} onUpload={handleUploadClick} />}
+        {(state === "uploading" || state === "analyzing") && <ProcessingView state={state} progress={progress} />}
+        {state === "verified" && analysisResult && <ResultView result={analysisResult} onReset={handleReset} />}
+        {state === "error" && <ErrorView message={errorMsg} onRetry={handleReset} />}
       </AnimatePresence>
     </div>
   )
@@ -68,7 +91,7 @@ function CaptureView({ onCapture, onUpload }: { onCapture: () => void; onUpload:
       className="flex-1 flex flex-col"
     >
       {/* Viewfinder */}
-      <div className="flex-1 relative bg-slate-dark m-4 rounded-xl overflow-hidden border border-border">
+      <div className="flex-1 relative bg-slate-900 m-4 rounded-xl overflow-hidden border border-border">
         <div
           className="absolute inset-0 bg-cover bg-center opacity-60"
           style={{ backgroundImage: "url('/factory-smoke-pollution-industrial.jpg')" }}
@@ -146,158 +169,135 @@ function CaptureView({ onCapture, onUpload }: { onCapture: () => void; onUpload:
   )
 }
 
-function UploadingView({ progress, onRetake }: { progress: number; onRetake: () => void }) {
+function ProcessingView({ state, progress }: { state: string; progress: number }) {
   return (
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="flex-1 flex flex-col"
+      className="flex-1 flex flex-col items-center justify-center p-6 bg-background space-y-8"
     >
-      {/* Image preview */}
-      <div className="flex-1 relative bg-slate-dark m-4 rounded-xl overflow-hidden border border-border">
-        <div
-          className="absolute inset-0 bg-cover bg-center"
-          style={{ backgroundImage: "url('/industrial-emission-smoke-pollution.jpg')" }}
+      <div className="relative w-32 h-32 flex items-center justify-center">
+        <motion.div
+          className="absolute inset-0 border-4 border-neon-green/30 rounded-full"
+          animate={{ scale: [1, 1.1, 1], opacity: [0.3, 0.6, 0.3] }}
+          transition={{ duration: 2, repeat: Infinity }}
         />
-
-        {/* Overlay */}
-        <div className="absolute inset-0 bg-background/80 flex flex-col items-center justify-center p-6">
-          <Upload className="w-8 h-8 text-neon-green mb-4 animate-pulse" />
-          <p className="font-mono text-sm tracking-wider text-foreground mb-4">UPLOADING TO REGISTRY</p>
-
-          <div className="w-full max-w-xs h-2 bg-slate-medium rounded-full overflow-hidden">
-            <motion.div
-              className="h-full bg-neon-green rounded-full"
-              style={{
-                width: `${progress}%`,
-                boxShadow: "0 0 10px var(--neon-green)",
-              }}
-              transition={{ duration: 0.1 }}
-            />
-          </div>
-          <p className="font-mono text-2xl text-neon-green mt-4 tabular-nums">{progress}%</p>
-        </div>
+        <motion.div
+          className="absolute inset-0 border-t-4 border-neon-green rounded-full"
+          animate={{ rotate: 360 }}
+          transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+        />
+        <Activity className="w-12 h-12 text-neon-green" />
       </div>
 
-      {/* Retake button */}
-      <div className="p-4 flex justify-center">
-        <Button
-          onClick={onRetake}
-          variant="outline"
-          className="font-mono tracking-wider border-border text-muted-foreground hover:text-foreground bg-transparent"
-        >
-          <RotateCcw className="w-4 h-4 mr-2" />
-          RETAKE
-        </Button>
+      <div className="text-center space-y-2">
+        <h2 className="text-xl font-bold font-mono tracking-wider text-neon-green">
+          {state === "uploading" ? "UPLOADING..." : "ANALYZING..."}
+        </h2>
+        <p className="text-sm text-muted-foreground font-mono">
+          {state === "uploading"
+            ? "Encrypting and transmitting data securely"
+            : "Running neural network pollution detection models"}
+        </p>
+      </div>
+
+      <div className="w-64 h-1 bg-secondary rounded-full overflow-hidden">
+        <motion.div
+          className="h-full bg-neon-green"
+          initial={{ width: "0%" }}
+          animate={{ width: `${progress}%` }}
+        />
       </div>
     </motion.div>
   )
 }
 
-function AnimatedSuccessCheck() {
-  return (
-    <motion.div
-      initial={{ scale: 0 }}
-      animate={{ scale: 1 }}
-      transition={{ type: "spring", stiffness: 200, damping: 15 }}
-      className="w-20 h-20 rounded-full bg-neon-green/20 border-2 border-neon-green flex items-center justify-center mb-6"
-    >
-      <svg width="40" height="40" viewBox="0 0 24 24" fill="none">
-        <motion.path
-          d="M5 12l5 5L19 7"
-          stroke="var(--neon-green)"
-          strokeWidth="3"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          initial={{ pathLength: 0 }}
-          animate={{ pathLength: 1 }}
-          transition={{ duration: 0.5, delay: 0.2, ease: "easeOut" }}
-        />
-      </svg>
-    </motion.div>
-  )
-}
-
-function VerifiedView({ onContinue, onRetake }: { onContinue: () => void; onRetake: () => void }) {
+function ResultView({ result, onReset }: { result: AnalysisResult; onReset: () => void }) {
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0 }}
-      className="flex-1 flex flex-col items-center justify-center p-6"
+      className="flex-1 flex flex-col p-4 overflow-y-auto"
     >
-      <AnimatedSuccessCheck />
+      <div className="flex items-center gap-3 mb-6">
+        <div className="p-3 bg-neon-green/10 rounded-full">
+          <CheckCircle className="w-6 h-6 text-neon-green" />
+        </div>
+        <div>
+          <h2 className="text-lg font-bold">Analysis Complete</h2>
+          <p className="text-xs text-muted-foreground font-mono">ID: {Math.random().toString(36).substr(2, 9).toUpperCase()}</p>
+        </div>
+      </div>
 
-      <h2 className="font-mono text-lg tracking-wider text-foreground mb-2">VIOLATION LOGGED</h2>
-      <p className="font-mono text-xs text-muted-foreground text-center mb-8">
-        AI analysis verified. Your report has been dispatched to the Central Pollution Board.
-      </p>
+      <div className="space-y-4 mb-6">
+        <div className="p-4 bg-card border border-border rounded-xl space-y-2">
+          <span className="text-xs uppercase tracking-widest text-muted-foreground font-mono">Detected Pollution</span>
+          <div className="flex justify-between items-end">
+            <h3 className="text-xl font-bold text-foreground">{result.pollution_type}</h3>
+            <span className="text-sm font-mono text-neon-green font-bold">
+              {(result.confidence_level * 100).toFixed(1)}% CONFIDENCE
+            </span>
+          </div>
+          <div className="w-full h-1 bg-secondary rounded-full overflow-hidden mt-2">
+            <div className="h-full bg-neon-green" style={{ width: `${result.confidence_level * 100}%` }} />
+          </div>
+        </div>
 
-      <motion.div
-        initial={{ scale: 0.9, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        transition={{ delay: 0.3 }}
-        className="bg-card/50 border border-neon-green/30 rounded-xl p-4 mb-8 w-full max-w-xs"
-      >
-        <p className="font-mono text-xs text-muted-foreground mb-1">BOUNTY EARNED</p>
-        <p className="font-mono text-3xl animate-gold-shimmer">+100 Credits</p>
-      </motion.div>
+        {result.details.length > 0 && (
+          <div className="p-4 bg-card/50 border border-border rounded-xl">
+            <span className="text-xs uppercase tracking-widest text-muted-foreground font-mono block mb-3">Detected Objects</span>
+            <div className="flex flex-wrap gap-2">
+              {result.details.map((detail, idx) => (
+                <span key={idx} className="px-2 py-1 bg-secondary rounded text-xs font-mono">
+                  {detail.label} ({Math.round(detail.score * 100)}%)
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
 
-      <div className="flex gap-3 w-full max-w-xs">
-        <Button onClick={onRetake} variant="outline" className="flex-1 font-mono text-xs tracking-wider bg-transparent">
-          RETAKE
+        <div className="bg-card p-4 rounded-xl border border-neon-green/20">
+          <div className="flex items-center gap-2 mb-2">
+            <FileText className="w-4 h-4 text-neon-green" />
+            <span className="text-xs font-mono text-neon-green">AUTO-GENERATED LEGAL DRAFT</span>
+          </div>
+          <p className="text-sm text-muted-foreground leading-relaxed font-mono whitespace-pre-wrap">
+            {result.legal_draft}
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-auto pt-4 space-y-3">
+        <Button onClick={() => { }} className="w-full bg-neon-green text-background hover:bg-neon-green/90 font-mono tracking-wider">
+          <FileText className="w-4 h-4 mr-2" />
+          FILE OFFICIAL COMPLAINT
         </Button>
-        <Button
-          onClick={onContinue}
-          className="flex-1 font-mono text-xs tracking-wider bg-neon-green text-background hover:bg-neon-green/90"
-        >
-          VIEW REPORT
+        <Button onClick={onReset} variant="outline" className="w-full border-border hover:bg-secondary font-mono tracking-wider">
+          <RotateCcw className="w-4 h-4 mr-2" />
+          ANALYZE NEW IMAGE
         </Button>
       </div>
     </motion.div>
   )
 }
 
-function SuccessView({ onReset }: { onReset: () => void }) {
+function ErrorView({ message, onRetry }: { message: string; onRetry: () => void }) {
   return (
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="flex-1 flex flex-col p-6"
+      className="flex-1 flex flex-col items-center justify-center p-6 text-center space-y-4"
     >
-      <div className="flex-1 flex flex-col items-center justify-center">
-        <motion.div
-          initial={{ scale: 0 }}
-          animate={{ scale: 1 }}
-          className="w-16 h-16 rounded-full bg-neon-green/20 border-2 border-neon-green flex items-center justify-center mb-6"
-        >
-          <FileText className="w-8 h-8 text-neon-green" />
-        </motion.div>
-
-        <h2 className="font-mono text-sm tracking-wider text-foreground mb-4">AUTO-GENERATED COMPLAINT</h2>
-
-        <div className="bg-card/30 border border-border rounded-xl p-4 w-full">
-          <p className="font-mono text-xs text-muted-foreground leading-relaxed">
-            &ldquo;Formal report #PF-9921: Industrial particulate emission detected at [Current GPS]. Plume density
-            exceeds legal threshold of 20% opacity...&rdquo;
-          </p>
-        </div>
-
-        <p className="font-mono text-[10px] text-muted-foreground mt-6 text-center">
-          JOINED BY 1,240 SCOUTS IN YOUR CITY
-        </p>
+      <div className="p-4 bg-red-500/10 rounded-full">
+        <AlertTriangle className="w-12 h-12 text-red-500" />
       </div>
-
-      <div className="space-y-3">
-        <Button className="w-full font-mono text-xs tracking-wider bg-neon-green text-background hover:bg-neon-green/90">
-          TRACK ON GUILTY MAP
-        </Button>
-        <Button onClick={onReset} variant="outline" className="w-full font-mono text-xs tracking-wider bg-transparent">
-          BACK TO DASHBOARD
-        </Button>
-      </div>
+      <h2 className="text-xl font-bold text-red-500">Analysis Failed</h2>
+      <p className="text-sm text-muted-foreground max-w-xs">{message}</p>
+      <Button onClick={onRetry} variant="outline" className="mt-4">
+        Try Again
+      </Button>
     </motion.div>
   )
 }
