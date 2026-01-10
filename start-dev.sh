@@ -26,12 +26,12 @@ fi
 
 # Start Python Backend in the background
 echo "🐍 Starting Pollution Detector Backend (Port 8000)..."
-uvicorn sub_modules.pollution_detector.main:app --host 0.0.0.0 --port 8000 --reload &
+uvicorn sub_modules.pollution_detector.main:app --host 0.0.0.0 --port 8000 &
 BACKEND_PID=$!
 
 # Start Policy Feedback Backend
 echo "🏛️  Starting Policy Feedback Backend (Port 8001)..."
-uvicorn sub_modules.policy_feedback.backend.main:app --host 0.0.0.0 --port 8001 --reload &
+uvicorn sub_modules.policy_feedback.backend.main:app --host 0.0.0.0 --port 8001 &
 POLICY_PID=$!
 
 # Wait briefly for the server to initialize
