@@ -29,11 +29,25 @@ export function AlertFeed() {
   const [visibleAlerts, setVisibleAlerts] = useState<typeof alerts>([])
 
   useEffect(() => {
+    const timeouts: NodeJS.Timeout[] = []
+
+    // Clear existing for safety
+    setVisibleAlerts([])
+
     alerts.forEach((alert, index) => {
-      setTimeout(() => {
-        setVisibleAlerts((prev) => [...prev, alert])
+      const timeout = setTimeout(() => {
+        setVisibleAlerts((prev) => {
+          // Prevent duplicates incase of race conditions
+          if (prev.some(a => a.id === alert.id)) return prev
+          return [...prev, alert]
+        })
       }, index * 400)
+      timeouts.push(timeout)
     })
+
+    return () => {
+      timeouts.forEach((t) => clearTimeout(t))
+    }
   }, [])
 
   return (
@@ -47,18 +61,16 @@ export function AlertFeed() {
             initial={{ x: "-100%", opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
             transition={{ type: "spring", stiffness: 100, damping: 15 }}
-            className={`flex items-start gap-3 p-3 rounded-lg border bg-card/30 backdrop-blur-sm ${
-              alert.severity === "high" ? "border-neon-red/50 shadow-[0_0_15px_rgba(255,68,68,0.15)]" : "border-border"
-            }`}
+            className={`flex items-start gap-3 p-3 rounded-lg border bg-card/30 backdrop-blur-sm ${alert.severity === "high" ? "border-neon-red/50 shadow-[0_0_15px_rgba(255,68,68,0.15)]" : "border-border"
+              }`}
           >
             <div
-              className={`p-1.5 rounded-full ${
-                alert.severity === "high"
+              className={`p-1.5 rounded-full ${alert.severity === "high"
                   ? "bg-neon-red/20 text-neon-red animate-pulse-glow"
                   : alert.severity === "medium"
                     ? "bg-neon-yellow/20 text-neon-yellow"
                     : "bg-muted text-muted-foreground"
-              }`}
+                }`}
             >
               <AlertTriangle className="w-3.5 h-3.5" />
             </div>

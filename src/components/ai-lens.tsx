@@ -94,10 +94,10 @@ export function AILens() {
       />
 
       <AnimatePresence mode="wait">
-        {state === "capture" && <CaptureView onCapture={handleCameraCapture} onUpload={handleUploadClick} />}
-        {(state === "uploading" || state === "analyzing") && <ProcessingView state={state} progress={progress} />}
-        {state === "verified" && analysisResult && <ResultView result={analysisResult} onReset={handleReset} />}
-        {state === "error" && <ErrorView message={errorMsg} onRetry={handleReset} />}
+        {state === "capture" && <CaptureView key="capture" onCapture={handleCameraCapture} onUpload={handleUploadClick} />}
+        {(state === "uploading" || state === "analyzing") && <ProcessingView key="processing" state={state} progress={progress} />}
+        {state === "verified" && analysisResult && <ResultView key="result" result={analysisResult} onReset={handleReset} />}
+        {state === "error" && <ErrorView key="error" message={errorMsg} onRetry={handleReset} />}
       </AnimatePresence>
     </div>
   )
