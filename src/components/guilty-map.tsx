@@ -4,103 +4,131 @@ import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
 import { AlertTriangle, Factory, HardHat, Users, Circle } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet"
+import "leaflet/dist/leaflet.css"
+import L from "leaflet"
+import { db } from "@/lib/firebase"
+import { collection, getDocs, QueryDocumentSnapshot } from "firebase/firestore"
 
-type FilterType = "all" | "industrial" | "construction"
+// Fix for Leaflet default icon issues in React
+import icon from "leaflet/dist/images/marker-icon.png"
+import iconShadow from "leaflet/dist/images/marker-shadow.png"
 
-const violations = [
-  { id: 1, lat: 28.47, lng: 77.02, type: "industrial", label: "Factory Emission", status: "new", severity: "critical" },
-  {
-    id: 2,
-    lat: 28.48,
-    lng: 77.08,
-    type: "construction",
-    label: "Dust Violation",
-    status: "progress",
-    severity: "high",
-  },
-  {
-    id: 3,
-    lat: 28.45,
-    lng: 77.05,
-    type: "industrial",
-    label: "Illegal Discharge",
-    status: "resolved",
-    severity: "low",
-  },
-  { id: 4, lat: 28.46, lng: 77.03, type: "construction", label: "Debris Dumping", status: "new", severity: "medium" },
-  {
-    id: 5,
-    lat: 28.49,
-    lng: 77.06,
-    type: "industrial",
-    label: "Chemical Runoff",
-    status: "progress",
-    severity: "critical",
-  },
+let DefaultIcon = L.icon({
+  iconUrl: icon,
+  shadowUrl: iconShadow,
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+})
+
+L.Marker.prototype.options.icon = DefaultIcon
+
+function ResizeMap() {
+  const map = useMap();
+  useEffect(() => {
+    map.invalidateSize();
+  }, [map]);
+  return null;
+}
+
+type FilterType = "all" | "Industrial" | "Construction"
+
+interface PollutionReport {
+  id: string
+  lat: number
+  lng: number
+  type: string
+  label: string
+  status: "detected" | "in progress" | "resolved"
+  severity: "critical" | "high" | "medium" | "low"
+  site?: string
+}
+
+// Hardcoded demo points
+const demoViolations: PollutionReport[] = [
+  { id: "demo-1", lat: 28.47, lng: 77.02, type: "Industrial", label: "Factory Emission", status: "detected", severity: "critical" },
+  { id: "demo-2", lat: 28.48, lng: 77.08, type: "Construction", label: "Dust Violation", status: "in progress", severity: "high" },
+  { id: "demo-3", lat: 28.45, lng: 77.05, type: "Industrial", label: "Illegal Discharge", status: "resolved", severity: "low" },
+  { id: "demo-4", lat: 28.46, lng: 77.03, type: "Construction", label: "Debris Dumping", status: "detected", severity: "medium" },
+  { id: "demo-5", lat: 28.49, lng: 77.06, type: "Industrial", label: "Chemical Runoff", status: "in progress", severity: "critical" },
 ]
 
 export function GuiltyMap() {
   const [filter, setFilter] = useState<FilterType>("all")
   const [showBanner, setShowBanner] = useState(false)
-
-  const filteredViolations = violations.filter((v) => filter === "all" || v.type === filter)
+  const [violations, setViolations] = useState<PollutionReport[]>(demoViolations)
 
   useEffect(() => {
+    const fetchReports = async () => {
+      try {
+        const querySnapshot = await getDocs(collection(db, "pollution_reports"))
+        const fetchedReports: PollutionReport[] = []
+        querySnapshot.forEach((doc: QueryDocumentSnapshot) => {
+          const data = doc.data()
+          if (data.latitude && data.longitude) {
+            fetchedReports.push({
+              id: doc.id,
+              lat: data.latitude,
+              lng: data.longitude,
+              type: data.type || "Industrial",
+              label: data.site || "Reported Site",
+              status: (data.status as any) || "detected",
+              severity: "high", // Default severity as it's not in the schema provided
+            })
+          }
+        })
+        setViolations([...demoViolations, ...fetchedReports])
+      } catch (error) {
+        console.error("Error fetching pollution reports: ", error)
+      }
+    }
+
+    fetchReports()
+
     const timer = setTimeout(() => setShowBanner(true), 1000)
     return () => clearTimeout(timer)
   }, [])
 
+  const filteredViolations = violations.filter((v) => filter === "all" || v.type === filter)
+
   const getSeverityColor = (severity: string) => {
     switch (severity) {
-      case "critical":
-        return {
-          bg: "bg-severity-critical/30",
-          border: "border-severity-critical/60",
-          text: "text-severity-critical",
-          glow: "shadow-[0_0_12px_rgba(220,38,38,0.5)]",
-        }
-      case "high":
-        return {
-          bg: "bg-severity-high/30",
-          border: "border-severity-high/60",
-          text: "text-severity-high",
-          glow: "shadow-[0_0_10px_rgba(234,88,12,0.4)]",
-        }
-      case "medium":
-        return {
-          bg: "bg-severity-medium/30",
-          border: "border-severity-medium/60",
-          text: "text-severity-medium",
-          glow: "shadow-[0_0_8px_rgba(202,138,4,0.4)]",
-        }
-      case "low":
-        return {
-          bg: "bg-severity-low/30",
-          border: "border-severity-low/60",
-          text: "text-severity-low",
-          glow: "",
-        }
-      default:
-        return {
-          bg: "bg-muted/30",
-          border: "border-border",
-          text: "text-muted-foreground",
-          glow: "",
-        }
+      case "critical": return { bg: "bg-severity-critical", text: "text-severity-critical" }
+      case "high": return { bg: "bg-severity-high", text: "text-severity-high" }
+      case "medium": return { bg: "bg-severity-medium", text: "text-severity-medium" }
+      case "low": return { bg: "bg-severity-low", text: "text-severity-low" }
+      default: return { bg: "bg-muted", text: "text-muted-foreground" }
     }
   }
 
-  const getStatusLabel = (status: string) => {
+  const getStatusColor = (status: string) => {
     switch (status) {
-      case "new":
-        return "NEW"
-      case "progress":
-        return "IN PROGRESS"
-      case "resolved":
-        return "RESOLVED"
-      default:
-        return status.toUpperCase()
+      case "detected": return "bg-neon-red"
+      case "in progress": return "bg-neon-yellow" // closest to orange
+      case "resolved": return "bg-neon-green"
+      default: return "bg-muted"
     }
+  }
+
+  const createCustomIcon = (violation: PollutionReport) => {
+    const statusColorClass = getStatusColor(violation.status)
+    // We can't use Tailwind classes directly in L.divIcon html string easily without pre-processing styles or using inline styles if we want exact tailwind values.
+    // However, we can use a class and let standard application CSS handle it, or standard inline styles.
+    // Let's use inline styles with mapped colors for simplicity in the HTML string, or relying on global classes if available.
+    // Since we need to render Lucide icons, it's tricky inside L.divIcon html string.
+    // A common workaround is renderToString or simply using simpler HTML markers.
+    // For this implementation, let's use a simple colored div.
+
+    let color = "#ff4444" // detected/red
+    if (violation.status === 'in progress') color = "#fbbf24" // orange/yellow
+    if (violation.status === 'resolved') color = "#4ade80" // green
+
+    return L.divIcon({
+      className: "custom-marker",
+      html: `<div style="background-color: ${color}; width: 24px; height: 24px; border-radius: 50%; border: 2px solid white; box-shadow: 0 0 10px ${color};"></div>`,
+      iconSize: [24, 24],
+      iconAnchor: [12, 12]
+    })
   }
 
   return (
@@ -117,8 +145,8 @@ export function GuiltyMap() {
         <div className="flex gap-2">
           {[
             { id: "all" as const, label: "ALL THREATS", icon: AlertTriangle },
-            { id: "industrial" as const, label: "INDUSTRIAL", icon: Factory },
-            { id: "construction" as const, label: "CONSTRUCTION", icon: HardHat },
+            { id: "Industrial" as const, label: "INDUSTRIAL", icon: Factory },
+            { id: "Construction" as const, label: "CONSTRUCTION", icon: HardHat },
           ].map((f) => {
             const Icon = f.icon
             return (
@@ -146,86 +174,55 @@ export function GuiltyMap() {
             <Circle className="w-2 h-2 fill-severity-critical text-severity-critical" />
             <span>Critical</span>
           </div>
-          <div className="flex items-center gap-1">
-            <Circle className="w-2 h-2 fill-severity-high text-severity-high" />
-            <span>High</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <Circle className="w-2 h-2 fill-severity-medium text-severity-medium" />
-            <span>Medium</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <Circle className="w-2 h-2 fill-severity-low text-severity-low" />
-            <span>Low</span>
-          </div>
+          {/* ... keeping legend simple or expanding as needed */}
         </div>
       </div>
 
       {/* Map */}
-      <div className="flex-1 relative m-4 mt-0 rounded-xl overflow-hidden border border-border">
-        <div
-          className="absolute inset-0 bg-cover bg-center"
-          style={{
-            backgroundImage: "url('/dark-satellite-map-gurgaon-delhi-india-street-view.jpg')",
-            filter: "brightness(0.6) saturate(0.7) contrast(1.1)",
-          }}
-        />
-
-        {/* Map overlay with markers */}
-        <div className="absolute inset-0">
-          {filteredViolations.map((violation, index) => {
-            const colors = getSeverityColor(violation.severity)
-            return (
-              <motion.div
-                key={violation.id}
-                initial={{ scale: 0, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{ delay: index * 0.15, type: "spring", stiffness: 200 }}
-                className="absolute"
-                style={{
-                  left: `${15 + index * 18}%`,
-                  top: `${25 + (index % 3) * 20}%`,
-                }}
-              >
-                <div className="relative group cursor-pointer">
-                  {/* Pulse ring for critical/high severity */}
-                  {(violation.severity === "critical" || violation.severity === "high") && (
-                    <div className={cn("absolute inset-0 rounded-full animate-ping-ripple", colors.bg)} />
-                  )}
-                  <div
-                    className={cn(
-                      "w-10 h-10 rounded-full flex items-center justify-center border-2",
-                      colors.bg,
-                      colors.border,
-                      colors.text,
-                      colors.glow,
-                      violation.severity === "critical" && "animate-pulse-glow",
-                    )}
-                  >
-                    {violation.type === "industrial" ? (
-                      <Factory className="w-5 h-5" />
-                    ) : (
-                      <HardHat className="w-5 h-5" />
-                    )}
-                  </div>
-                  {/* Info tooltip */}
-                  <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                    <div className="bg-background/95 backdrop-blur-sm px-2 py-1.5 rounded border border-border">
-                      <p className={cn("font-mono text-[9px] font-bold", colors.text)}>{violation.label}</p>
-                      <p className="font-mono text-[8px] text-muted-foreground">{getStatusLabel(violation.status)}</p>
-                    </div>
+      <div className="flex-1 relative m-4 mt-0 rounded-xl overflow-hidden border border-border min-h-[500px]">
+        <MapContainer
+          center={[28.4595, 77.0266]} // Centered around Gurgaon
+          zoom={12}
+          style={{ height: "500px", width: "100%" }} // Force pixel height for debugging
+        >
+          <ResizeMap />
+          {/* Dark Matter Tile Layer */}
+          <TileLayer
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+            url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+          />
+          {filteredViolations.map((violation) => (
+            <Marker
+              key={violation.id}
+              position={[violation.lat, violation.lng]}
+              icon={createCustomIcon(violation)}
+            >
+              <Popup className="custom-popup">
+                <div className="p-2">
+                  <h3 className="font-bold text-sm">{violation.label}</h3>
+                  <p className="text-xs text-muted-foreground capitalize">{violation.type}</p>
+                  <div className="mt-2 flex items-center gap-2">
+                    <span className={cn("text-[10px] px-2 py-0.5 rounded-full text-white capitalize",
+                      violation.status === 'detected' ? 'bg-red-500' :
+                        violation.status === 'in progress' ? 'bg-orange-500' : 'bg-green-500'
+                    )}>
+                      {violation.status}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground capitalize">
+                      {violation.severity} severity
+                    </span>
                   </div>
                 </div>
-              </motion.div>
-            )
-          })}
-        </div>
+              </Popup>
+            </Marker>
+          ))}
+        </MapContainer>
 
         <motion.div
           initial={{ y: "100%", opacity: 0 }}
           animate={showBanner ? { y: 0, opacity: 1 } : { y: "100%", opacity: 0 }}
           transition={{ type: "spring", stiffness: 100, damping: 15 }}
-          className="absolute bottom-4 left-4 right-4"
+          className="absolute bottom-4 left-4 right-4 z-[500]"
         >
           <div className="bg-background/90 backdrop-blur-sm rounded-lg border border-border p-3 flex items-center gap-3">
             <div className="p-2 rounded-full bg-neon-green/20">
@@ -241,3 +238,4 @@ export function GuiltyMap() {
     </div>
   )
 }
+

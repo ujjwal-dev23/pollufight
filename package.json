@@ -69,6 +69,7 @@
   "devDependencies": {
     "@tailwindcss/vite": "^4.1.18",
     "@tauri-apps/cli": "^2",
+    "@types/leaflet": "^1.9.21",
     "@types/node": "^25.0.5",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
