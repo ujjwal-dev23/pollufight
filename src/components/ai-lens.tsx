@@ -1,8 +1,8 @@
 "use client"
 
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { Camera, RotateCcw, Upload, FileText, ScanLine, Activity, AlertTriangle, CheckCircle } from "lucide-react"
+import { Camera, RotateCcw, Upload, FileText, Activity, AlertTriangle, CheckCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { uploadToCloudinary } from "@/services/cloudinary-service"
 import { analyzeImage, type AnalysisResult } from "@/services/pollution-service"
@@ -22,8 +22,19 @@ export function AILens() {
   const [errorMsg, setErrorMsg] = useState<string>("")
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const handleCapture = () => {
-    // For now, capture button also triggers upload as camera integration is separate/complex
+  // Handle file selection from input
+  const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      processFile(e.target.files[0])
+    }
+  }
+
+  // Handle captured image from camera
+  const handleCameraCapture = (file: File) => {
+    processFile(file)
+  }
+
+  const handleUploadClick = () => {
     fileInputRef.current?.click()
   }
 
@@ -63,15 +74,7 @@ export function AILens() {
     }
   }
 
-  const handleUploadClick = () => {
-    fileInputRef.current?.click()
-  }
 
-  const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      processFile(e.target.files[0])
-    }
-  }
 
   const handleReset = () => {
     setState("capture")
@@ -91,7 +94,7 @@ export function AILens() {
       />
 
       <AnimatePresence mode="wait">
-        {state === "capture" && <CaptureView onCapture={handleCapture} onUpload={handleUploadClick} />}
+        {state === "capture" && <CaptureView onCapture={handleCameraCapture} onUpload={handleUploadClick} />}
         {(state === "uploading" || state === "analyzing") && <ProcessingView state={state} progress={progress} />}
         {state === "verified" && analysisResult && <ResultView result={analysisResult} onReset={handleReset} />}
         {state === "error" && <ErrorView message={errorMsg} onRetry={handleReset} />}
@@ -100,92 +103,157 @@ export function AILens() {
   )
 }
 
-function CaptureView({ onCapture, onUpload }: { onCapture: () => void; onUpload: () => void }) {
+function CaptureView({ onCapture, onUpload }: { onCapture: (file: File) => void; onUpload: () => void }) {
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  // const [stream, setStream] = useState<MediaStream | null>(null) // Removed unused state
+  const [activeStream, setActiveStream] = useState<MediaStream | null>(null) // Added for keying
+  const [error, setError] = useState<string>("")
+
+  // Start camera on mount with proper cleanup
+  useEffect(() => {
+    let currentStream: MediaStream | null = null;
+    let isMounted = true;
+
+    const initCamera = async () => {
+      try {
+        // Try without constraints first for maximum compatibility
+        const mediaStream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: false
+        })
+
+        if (!isMounted) {
+          mediaStream.getTracks().forEach(track => track.stop());
+          return;
+        }
+
+        currentStream = mediaStream;
+        setActiveStream(mediaStream);
+        setError("")
+      } catch (err) {
+        if (isMounted) {
+          console.error("Camera error:", err)
+          setError("Camera unavailable. " + String(err))
+        }
+      }
+    }
+
+    initCamera();
+
+    return () => {
+      isMounted = false;
+      if (currentStream) {
+        currentStream.getTracks().forEach(track => track.stop());
+      }
+    }
+  }, [])
+
+  // Attach stream to video element whenever it changes
+  useEffect(() => {
+    if (activeStream && videoRef.current) {
+      videoRef.current.srcObject = activeStream;
+      // Note: play() is triggered by onLoadedMetadata in the video tag
+    }
+  }, [activeStream])
+
+  const handleShutter = () => {
+    if (videoRef.current && canvasRef.current) {
+      const video = videoRef.current
+      const canvas = canvasRef.current
+      // Set canvas dimensions to match video stream
+      canvas.width = video.videoWidth
+      canvas.height = video.videoHeight
+
+      const ctx = canvas.getContext('2d')
+      if (ctx) {
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+        canvas.toBlob((blob) => {
+          if (blob) {
+            const file = new File([blob], `capture-${Date.now()}.jpg`, { type: "image/jpeg" })
+            onCapture(file)
+          }
+        }, 'image/jpeg', 0.9)
+      }
+    }
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="flex-1 flex flex-col"
+      className="absolute inset-0 flex flex-col z-0"
     >
+      <canvas ref={canvasRef} className="hidden" />
+
       {/* Viewfinder */}
-      <div className="flex-1 relative bg-slate-900 m-4 rounded-xl overflow-hidden border border-border">
-        <div
-          className="absolute inset-0 bg-cover bg-center opacity-60"
-          style={{ backgroundImage: "url('/factory-smoke-pollution-industrial.jpg')" }}
-        />
+      <div className="flex-1 relative bg-black m-4 rounded-xl overflow-hidden shadow-2xl border border-white/10 min-h-[60vh]">
+        {error ? (
+          <div className="absolute inset-0 flex items-center justify-center p-6 text-center">
+            <div className="space-y-4">
+              <AlertTriangle className="w-12 h-12 text-yellow-500 mx-auto" />
+              <p className="text-white font-mono text-sm">{error}</p>
+              <Button onClick={onUpload} variant="outline" className="mt-2">Use Upload Instead</Button>
+            </div>
+          </div>
+        ) : (
+          <video
+            ref={videoRef}
+            autoPlay
+            playsInline
+            muted
+            onLoadedMetadata={() => {
+              videoRef.current?.play().catch(e => console.error("Play error:", e));
+            }}
+            className="absolute inset-0 w-full h-full object-cover"
+          />
+        )}
 
         {/* Viewfinder overlay */}
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="w-48 h-48 border-2 border-neon-green/50 rounded-lg relative">
-            <div className="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-neon-green" />
-            <div className="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-neon-green" />
-            <div className="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 border-neon-green" />
-            <div className="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-neon-green" />
-          </div>
-        </div>
+        {!error && (
+          <div className="absolute inset-0 pointer-events-none">
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="w-64 h-64 border border-neon-green/30 rounded-lg relative">
+                {/* Corners */}
+                <div className="absolute top-0 left-0 w-6 h-6 border-t-2 border-l-2 border-neon-green" />
+                <div className="absolute top-0 right-0 w-6 h-6 border-t-2 border-r-2 border-neon-green" />
+                <div className="absolute bottom-0 left-0 w-6 h-6 border-b-2 border-l-2 border-neon-green" />
+                <div className="absolute bottom-0 right-0 w-6 h-6 border-b-2 border-r-2 border-neon-green" />
+              </div>
+            </div>
 
-        {/* Scanning laser animation */}
-        <motion.div
-          className="absolute left-4 right-4 h-0.5 bg-gradient-to-r from-transparent via-neon-green to-transparent"
-          style={{ boxShadow: "0 0 10px var(--neon-green), 0 0 20px var(--neon-green)" }}
-          animate={{ top: ["10%", "90%", "10%"] }}
-          transition={{ duration: 2.5, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" }}
-        />
-
-        {/* Computer Vision / AI detection label */}
-        <div className="absolute top-4 left-4 right-4 flex items-center justify-between">
-          <div className="flex items-center gap-2 bg-background/80 backdrop-blur-sm px-3 py-1.5 rounded-full">
-            <Activity className="w-3 h-3 text-neon-green animate-pulse" />
-            <span className="font-mono text-[10px] text-neon-green">COMPUTER VISION ACTIVE</span>
           </div>
-        </div>
+        )}
       </div>
 
-      {/* Description */}
-      <div className="px-4 mb-4">
-        <p className="font-mono text-xs text-muted-foreground text-center">
-          AI-powered image analysis for pollution detection using computer vision
-        </p>
-      </div>
-
-      {/* Action buttons */}
-      <div className="p-4 flex flex-col gap-3">
-        <div className="flex gap-3 justify-center">
-          {/* Upload Image button with pulse animation */}
+      {/* Controls */}
+      <div className="p-6 pb-10 flex items-center justify-center relative">
+        {/* Upload Button */}
+        <div className="absolute left-6">
           <Button
             onClick={onUpload}
             variant="outline"
-            className="flex-1 font-mono text-xs tracking-wider border-border text-muted-foreground hover:text-foreground bg-transparent hover:bg-card/50 group"
+            className="font-mono text-xs tracking-wider border-border text-muted-foreground hover:text-foreground bg-transparent hover:bg-card/50 group px-3"
           >
-            <Upload className="w-4 h-4 mr-2 group-hover:animate-pulse" />
-            UPLOAD IMAGE
-          </Button>
-
-          {/* Scan & Analyze button with activity animation */}
-          <Button
-            onClick={onCapture}
-            className="flex-1 font-mono text-xs tracking-wider bg-neon-green text-background hover:bg-neon-green/90 group"
-          >
-            <ScanLine className="w-4 h-4 mr-2 group-hover:animate-pulse" />
-            SCAN & ANALYZE
+            <Upload className="w-4 h-4 group-hover:animate-pulse" />
+            <span className="hidden sm:inline ml-2">UPLOAD IMAGE</span>
           </Button>
         </div>
 
-        {/* Capture button */}
-        <div className="flex justify-center">
-          <Button
-            onClick={onCapture}
-            size="lg"
-            className="w-16 h-16 rounded-full bg-neon-green/20 border-2 border-neon-green text-neon-green hover:bg-neon-green/30"
-          >
-            <Camera className="w-6 h-6" />
-          </Button>
-        </div>
+        {/* Shutter Button */}
+        <Button
+          onClick={handleShutter}
+          disabled={!!error}
+          className="w-20 h-20 rounded-full bg-neon-green hover:bg-neon-green/90 p-1 border-4 border-background ring-2 ring-neon-green shadow-[0_0_30px_rgba(34,197,94,0.3)] transition-transform active:scale-95 z-10"
+        >
+          <Camera className="w-8 h-8 text-black" />
+        </Button>
       </div>
     </motion.div>
   )
 }
+
 
 function ProcessingView({ state, progress }: { state: string; progress: number }) {
   return (
