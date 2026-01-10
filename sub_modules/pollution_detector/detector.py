@@ -5,6 +5,7 @@ from PIL import Image
 import io
 from dotenv import load_dotenv
 import logging
+from typing import Optional
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -103,7 +104,7 @@ def classify_scene(image_bytes: bytes, headers: dict) -> List[Dict]:
         logger.warning(f"Scene classification failed: {e}")
     return []
 
-def detect_pollution(image: Image.Image, filename: str = "") -> Dict[str, Any]:
+def detect_pollution(image: Optional[Image.Image] = None, filename: str = "") -> Dict[str, Any]:
     """
     Detects objects in the image and identifies potential pollution sources.
     INCLUDES OFFLINE DEMO MODE based on filename.
@@ -145,6 +146,14 @@ def detect_pollution(image: Image.Image, filename: str = "") -> Dict[str, Any]:
                 ]
             }
     # ---------------------------------------------------
+
+    if image is None:
+         logger.info("No image provided. Returning 'Image Required' error.")
+         return {
+            "pollution_type": "Image Required",
+            "confidence_level": 0.0,
+            "details": [{"label": "Error", "score": 0.0, "source": "System: No image provided"}]
+         }
 
     # If no match, try Real AI (Fallback)
     try:

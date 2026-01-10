@@ -18,12 +18,15 @@ export interface AnalysisResult {
 
 const API_URL = 'http://localhost:8000/analyze';
 
-export async function analyzeImage(imageUrl: string): Promise<AnalysisResult> {
+export async function analyzeImage(imageUrl: string, originalFilename?: string): Promise<AnalysisResult> {
   try {
     console.log('Analyzing image via HTTP:', imageUrl);
 
     const formData = new FormData();
     formData.append('image_url', imageUrl);
+    if (originalFilename) {
+      formData.append('original_filename', originalFilename);
+    }
 
     const response = await fetch(API_URL, {
       method: 'POST',

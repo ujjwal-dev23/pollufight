@@ -9,6 +9,12 @@ import { analyzeImage, type AnalysisResult } from "@/services/pollution-service"
 
 type LensState = "capture" | "uploading" | "analyzing" | "verified" | "error"
 
+const DEMO_KEYWORDS = [
+  "waste", "trash", "garbage", "rubbish", "dump", "plastic", "bottle",
+  "car", "vehicle", "traffic", "truck", "bus",
+  "smoke", "fire", "factory", "industry", "chimney"
+];
+
 export function AILens() {
   const [state, setState] = useState<LensState>("capture")
   const [progress, setProgress] = useState(0)
@@ -23,17 +29,29 @@ export function AILens() {
 
   const processFile = async (file: File) => {
     try {
-      setState("uploading")
-      setProgress(10)
+      const filename = file.name.toLowerCase();
+      const isDemo = DEMO_KEYWORDS.some(keyword => filename.includes(keyword));
 
-      // Upload to Cloudinary
-      const imageUrl = await uploadToCloudinary(file)
-      setProgress(50)
+      let imageUrl = "skipped";
+
+      if (!isDemo) {
+        setState("uploading")
+        setProgress(10)
+
+        // Upload to Cloudinary
+        imageUrl = await uploadToCloudinary(file)
+        setProgress(50)
+      } else {
+        console.log("Demo image detected, skipping upload:", file.name);
+        // Simulate upload time for better UX
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        setProgress(50);
+      }
 
       setState("analyzing")
 
       // Analyze with Pollution Detector
-      const result = await analyzeImage(imageUrl)
+      const result = await analyzeImage(imageUrl, file.name)
       setAnalysisResult(result)
       setProgress(100)
 
