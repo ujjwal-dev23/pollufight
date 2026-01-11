@@ -19,6 +19,11 @@ rem Start Policy Feedback Backend
 echo 🏛️  Starting Policy Feedback Backend (Port 8001)...
 start "Policy Feedback Backend" cmd /k "python -m uvicorn sub_modules.policy_feedback.backend.main:app --host 0.0.0.0 --port 8001"
 
+rem Start Chatbot Backend
+echo 🤖 Starting Chatbot Backend (Port 5001)...
+set PYTHONPATH=%PYTHONPATH%;%cd%\sub_modules\chatbot
+start "Chatbot Backend" cmd /k "python -m app.main"
+
 rem Wait briefly
 timeout /t 2 /nobreak >nul
 

@@ -26,7 +26,13 @@ cd pollufight
 ```
 Install dependencies
 ```bash
+# Frontend
 npm install
+
+# Backend
+python3 -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate.bat
+pip install -r requirements.txt
 ```
 
 ## Environment Configuration
@@ -51,7 +57,6 @@ VITE_FIREBASE_MEASUREMENT_ID=your_measurement_id
 # Hugging Face Configuration
 HUGGINGFACE_API_TOKEN=your_huggingface_api_token
 HUGGINGFACEHUB_API_TOKEN=your_huggingfacehub_api_token
-
 ```
 
 ### Firebase Setup Steps:
@@ -59,7 +64,7 @@ HUGGINGFACEHUB_API_TOKEN=your_huggingfacehub_api_token
 2. Enable Firestore Database (start in test mode for prototype)
 3. Go to Project Settings > General > Your apps > Web app
 4. Copy the configuration values to your `.env` file
-5. Set Firestore security rules (for prototype, use test mode or the rules from the plan)
+5. Set Firestore security rules (for prototype, use test mode)
 
 Run the development environment (Frontend + Backends):
 
