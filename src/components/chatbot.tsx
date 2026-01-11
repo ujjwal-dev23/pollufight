@@ -55,7 +55,7 @@ export function Chatbot() {
     scrollToBottom()
   }, [messages])
 
-  const getBotResponse = (userMessage: string): string => {
+  const getBotResponse = (userMessage: string): string | null => {
     const normalizedMessage = userMessage.toLowerCase().trim()
 
     for (const [key, response] of Object.entries(botResponses)) {
@@ -64,10 +64,10 @@ export function Chatbot() {
       }
     }
 
-    return botResponses.default
+    return null
   }
 
-  const handleSend = (message?: string) => {
+  const handleSend = async (message?: string) => {
     const messageText = message || input.trim()
     if (!messageText) return
 
@@ -82,17 +82,54 @@ export function Chatbot() {
     setInput("")
     setIsTyping(true)
 
-    // Simulate bot thinking delay
-    setTimeout(() => {
+    // Check for hardcoded response first
+    const localResponse = getBotResponse(messageText)
+    if (localResponse) {
+      setTimeout(() => {
+        const botMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          type: "bot",
+          content: localResponse,
+          timestamp: new Date(),
+        }
+        setMessages((prev) => [...prev, botMessage])
+        setIsTyping(false)
+      }, 500) // Small delay for natural feel
+      return
+    }
+
+    try {
+      const response = await fetch("http://localhost:5001/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query: messageText }),
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to get response")
+      }
+
+      const data = await response.json()
+
       const botMessage: Message = {
         id: (Date.now() + 1).toString(),
         type: "bot",
-        content: getBotResponse(messageText),
+        content: data.response || "Sorry, I couldn't process that request.",
         timestamp: new Date(),
       }
       setMessages((prev) => [...prev, botMessage])
+    } catch (error) {
+      console.error("Chatbot error:", error)
+      const errorMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        type: "bot",
+        content: "Sorry, I'm having trouble connecting to my brain right now. Please try again later.",
+        timestamp: new Date(),
+      }
+      setMessages((prev) => [...prev, errorMessage])
+    } finally {
       setIsTyping(false)
-    }, 1000)
+    }
   }
 
   return (

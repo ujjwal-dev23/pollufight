@@ -2,6 +2,7 @@ import { useState, useEffect } from "react"
 import { LandingPage } from "@/components/landing/landing-page"
 import { TacticalApp } from "@/components/tactical/tactical-app"
 import { SystemTransition } from "@/components/system-transition"
+import { Chatbot } from "@/components/chatbot"
 
 export type AppMode = "portal" | "tactical" | "transitioning"
 export type TacticalTab = "pulse" | "ai-lens" | "guilty-map" | "wallet"
@@ -38,5 +39,10 @@ export default function CivicSenseApp() {
     return <TacticalApp initialTab={initialTab} onExit={handleExitTactical} />
   }
 
-  return <LandingPage onEnterTactical={handleEnterTactical} />
+  return (
+    <>
+      <LandingPage onEnterTactical={handleEnterTactical} />
+      <Chatbot />
+    </>
+  )
 }

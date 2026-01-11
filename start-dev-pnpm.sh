@@ -34,6 +34,13 @@ echo "🏛️  Starting Policy Feedback Backend (Port 8001)..."
 uvicorn sub_modules.policy_feedback.backend.main:app --host 0.0.0.0 --port 8001 &
 POLICY_PID=$!
 
+# Start Chatbot Backend
+echo "🤖 Starting Chatbot Backend (Port 5001)..."
+export PYTHONPATH=$PYTHONPATH:$(pwd)/sub_modules/chatbot
+python -m app.main &
+CHATBOT_PID=$!
+
+
 # Wait briefly for the server to initialize
 sleep 2
 
@@ -51,4 +58,4 @@ else
 fi
 
 # Wait for background processes
-wait $BACKEND_PID
+wait $BACKEND_PID $POLICY_PID $CHATBOT_PID
