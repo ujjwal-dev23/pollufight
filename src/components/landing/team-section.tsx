@@ -32,7 +32,7 @@ const team = [
   },
   {
     name: "Ghanand",
-    role: "Frontend Lead",
+    role: "Full-Stack Developer",
     icon: Server,
     color: "gold" as const,
     github: "#",
