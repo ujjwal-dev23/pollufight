@@ -117,9 +117,9 @@ function CaptureView({ onCapture, onUpload }: { onCapture: (file: File) => void;
 
     const initCamera = async () => {
       try {
-        // Try without constraints first for maximum compatibility
+        // Try with environment facing mode for rear camera
         const mediaStream = await navigator.mediaDevices.getUserMedia({
-          video: true,
+          video: { facingMode: "environment" },
           audio: false
         })
 
