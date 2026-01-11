@@ -46,6 +46,12 @@ VITE_FIREBASE_PROJECT_ID=your_project_id
 VITE_FIREBASE_STORAGE_BUCKET=your_project_id.appspot.com
 VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
 VITE_FIREBASE_APP_ID=your_app_id
+VITE_FIREBASE_MEASUREMENT_ID=your_measurement_id
+
+# Hugging Face Configuration
+HUGGINGFACE_API_TOKEN=your_huggingface_api_token
+HUGGINGFACEHUB_API_TOKEN=your_huggingfacehub_api_token
+
 ```
 
 ### Firebase Setup Steps:
@@ -55,7 +61,20 @@ VITE_FIREBASE_APP_ID=your_app_id
 4. Copy the configuration values to your `.env` file
 5. Set Firestore security rules (for prototype, use test mode or the rules from the plan)
 
-Run the development server
+Run the development environment (Frontend + Backends):
+
+### Linux / macOS
 ```bash
-npm run dev
+./start-dev.sh
 ```
+
+### Windows
+```batch
+start-dev.bat
+```
+
+### Running in Specific Modes
+- **Browser (Default):** `./start-dev.sh` (or `start-dev.bat`)
+- **Tauri Desktop:** `./start-dev.sh tauri` (or `start-dev.bat tauri`)
+- **Android:** `./start-dev.sh android` (or `start-dev.bat android`)
+

@@ -41,13 +41,13 @@ sleep 2
 echo "🚀 Starting Frontend..."
 if [ "$1" == "tauri" ]; then
     echo "📱 Mode: Tauri App"
-    npm run tauri dev
+    pnpm tauri dev
 elif [ "$1" == "android" ]; then
     echo "🤖 Mode: Android App"
-    npm run tauri android dev
+    pnpm tauri android dev
 else
     echo "🌐 Mode: Browser"
-    npm run dev
+    pnpm dev
 fi
 
 # Wait for background processes
