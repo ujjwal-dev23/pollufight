@@ -15,8 +15,8 @@ const team = [
     linkedin: "https://www.linkedin.com/in/ujjwal-aa438a358/",
   },
   {
-    name: "Aaush",
-    role: "AI Engineer",
+    name: "Aayush",
+    role: "AI and Backend",
     icon: Brain,
     color: "cyan" as const,
     github: "#",
@@ -24,7 +24,7 @@ const team = [
   },
   {
     name: "Kalidas",
-    role: "Frontend Lead",
+    role: "Full-Stack Developer",
     icon: Layout,
     color: "blue" as const,
     github: "#",
@@ -32,7 +32,7 @@ const team = [
   },
   {
     name: "Ghanand",
-    role: "Full-Stack Developer",
+    role: "Frontend Lead",
     icon: Server,
     color: "gold" as const,
     github: "#",
