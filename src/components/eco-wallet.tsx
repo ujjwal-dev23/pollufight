@@ -183,7 +183,7 @@ export function EcoWallet() {
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}>
         <Button className="w-full font-mono text-xs tracking-wider bg-neon-green text-background hover:bg-neon-green/90 h-12">
           <Banknote className="w-4 h-4 mr-2" />
-          REDEEM TO BANK ACCOUNT
+          REDEEM CREDITS
         </Button>
       </motion.div>
 

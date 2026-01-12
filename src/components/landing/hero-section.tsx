@@ -71,13 +71,13 @@ export function HeroSection({ onEnterTactical }: HeroSectionProps) {
         {/* Wide, typography-heavy centered layout */}
         <div className="max-w-4xl mx-auto text-center space-y-8">
           <div className="space-y-6">
-            <p className="text-emerald font-semibold text-lg tracking-wide">AI-Powered Pollution Accountability</p>
-            <h1 className="text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold text-foreground leading-tight text-balance">
+            <p className="text-foreground font-semibold text-lg tracking-wide">AI-Powered Pollution Accountability</p>
+            <h1 className="text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold text-orange-500 leading-tight text-balance">
               Every Violation Visible.
               <br />
-              <span className="text-orange-500">Every Polluter Accountable.</span>
+              <span className="text-foreground">Every Polluter Accountable.</span>
             </h1>
-            <h2 className="text-xl md:text-2xl lg:text-3xl text-muted-foreground font-medium text-balance">
+            <h2 className="text-xl md:text-2xl lg:text-3xl text-emerald font-medium text-balance">
               Citizen-driven AI surveillance for cleaner air and water.
             </h2>
           </div>
