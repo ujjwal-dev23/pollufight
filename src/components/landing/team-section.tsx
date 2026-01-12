@@ -16,7 +16,7 @@ const team = [
   },
   {
     name: "Aayush",
-    role: "AI and Backend",
+    role: "Backend and AI",
     icon: Brain,
     color: "cyan" as const,
     github: "#",
@@ -56,7 +56,7 @@ export function TeamSection() {
       <div className="container mx-auto px-4">
         <div className="text-center mb-16">
           <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">The Architects</h2>
-          <p className="text-lg text-muted-foreground">Meet the team building PolluFight</p>
+          <p className="text-lg text-muted-foreground">Meet the team building Jan-Kavach</p>
         </div>
 
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-5xl mx-auto">

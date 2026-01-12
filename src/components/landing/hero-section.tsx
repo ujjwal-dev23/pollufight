@@ -75,7 +75,7 @@ export function HeroSection({ onEnterTactical }: HeroSectionProps) {
             <h1 className="text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold text-foreground leading-tight text-balance">
               Every Violation Visible.
               <br />
-              <span className="text-orange">Every Polluter Accountable.</span>
+              <span className="text-orange-500">Every Polluter Accountable.</span>
             </h1>
             <h2 className="text-xl md:text-2xl lg:text-3xl text-muted-foreground font-medium text-balance">
               Citizen-driven AI surveillance for cleaner air and water.

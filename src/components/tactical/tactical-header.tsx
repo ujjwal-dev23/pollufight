@@ -25,7 +25,7 @@ export function TacticalHeader({ onExit }: TacticalHeaderProps) {
         {/* Center - System status */}
         <div className="flex items-center gap-2">
           <Signal className="w-4 h-4 text-neon-green animate-pulse" />
-          <span className="font-mono text-xs text-neon-green tracking-wider">POLLUFIGHT ACTIVE</span>
+          <span className="font-mono text-xs text-neon-green tracking-wider">JAN-KAVACH ACTIVE</span>
         </div>
 
         {/* Placeholder for balance */}

@@ -20,7 +20,7 @@ export function TopHeader() {
           </div>
           <span className="font-mono text-xs text-neon-green tracking-wider animate-pulse-text">SYSTEM ACTIVE</span>
         </div>
-        <h1 className="font-mono text-lg font-bold tracking-widest text-foreground">POLLUFIGHT</h1>
+        <h1 className="font-mono text-lg font-bold tracking-widest text-foreground">JAN-KAVACH</h1>
         <div className="w-16" />
       </div>
     </header>

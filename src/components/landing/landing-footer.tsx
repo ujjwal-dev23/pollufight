@@ -17,7 +17,7 @@ export function LandingFooter() {
               <div className="w-8 h-8 rounded-lg bg-emerald flex items-center justify-center">
                 <Activity className="w-5 h-5 text-white" />
               </div>
-              <span className="font-semibold text-lg text-white">PolluFight</span>
+              <span className="font-semibold text-lg text-white">Jan-Kavach</span>
             </div>
             <p className="text-slate-400 text-sm leading-relaxed">
               AI-powered environmental enforcement empowering citizens to create cleaner, better cities.
@@ -43,7 +43,7 @@ export function LandingFooter() {
 
         {/* Bottom */}
         <div className="pt-8 border-t border-slate-800 text-center">
-          <p className="text-sm text-slate-400">© 2026 PolluFight. Built for India.</p>
+          <p className="text-sm text-slate-400">© 2026 Jan-Kavach. Built for India.</p>
         </div>
       </div>
     </footer>

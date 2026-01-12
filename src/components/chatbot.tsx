@@ -14,15 +14,15 @@ interface Message {
 }
 
 const quickActions = [
-  { label: "How does PolluFight work?", icon: Sparkles },
+  { label: "How does Jan-Kavach work?", icon: Sparkles },
   { label: "What is the Guilty Map?", icon: Map },
   { label: "How to report pollution?", icon: Camera },
   { label: "What is EcoWallet?", icon: Wallet },
 ]
 
 const botResponses: Record<string, string> = {
-  "how does pollufight work?":
-    "PolluFight is a citizen-driven AI platform for pollution accountability. Here's how it works:\n\n1. **Report**: Use AI Lens to photograph pollution violations\n2. **Verify**: Our AI instantly analyzes and verifies the report\n3. **Track**: Monitor enforcement on the Guilty Map\n4. **Earn**: Get EcoCredits for verified reports\n\nWould you like to know more about any specific feature?",
+  "how does jan-kavach work?":
+    "Jan-Kavach is a citizen-driven AI platform for pollution accountability. Here's how it works:\n\n1. **Report**: Use AI Lens to photograph pollution violations\n2. **Verify**: Our AI instantly analyzes and verifies the report\n3. **Track**: Monitor enforcement on the Guilty Map\n4. **Earn**: Get EcoCredits for verified reports\n\nWould you like to know more about any specific feature?",
   "what is the guilty map?":
     "The **Guilty Map** is our real-time geospatial visualization of pollution violations across your area.\n\n• **Color-coded severity**: Critical (red), High (orange), Medium (yellow), Low (green)\n• **Filter by type**: Industrial, Construction, or All Threats\n• **Crowdsourced verification**: See reports verified by fellow citizens\n• **Track resolution**: Monitor as violations move from 'New' to 'Resolved'\n\nIt helps you understand pollution hotspots in your community.",
   "how to report pollution?":
@@ -30,7 +30,7 @@ const botResponses: Record<string, string> = {
   "what is ecowallet?":
     "**EcoWallet** is your reward hub for environmental action:\n\n• **Earn EcoCredits**: Get 5-25 credits per verified report\n• **Scout Tiers**: Progress from Rookie to Elite Scout\n• **Verification History**: Track all your contributions\n• **Redeem Rewards**: Convert credits to real benefits\n\nTop scouts unlock special badges and priority verification status!",
   default:
-    "I'm your PolluFight assistant! I can help you understand:\n\n• How to report pollution violations\n• Using the AI Lens scanner\n• Navigating the Guilty Map\n• Earning and using EcoCredits\n• Ward-level monitoring\n\nWhat would you like to know?",
+    "I'm your Jan-Kavach assistant! I can help you understand:\n\n• How to report pollution violations\n• Using the AI Lens scanner\n• Navigating the Guilty Map\n• Earning and using EcoCredits\n• Ward-level monitoring\n\nWhat would you like to know?",
 }
 
 export function Chatbot() {
@@ -39,7 +39,7 @@ export function Chatbot() {
     {
       id: "1",
       type: "bot",
-      content: "Welcome to PolluFight! I'm your AI assistant. How can I help you fight pollution today?",
+      content: "Welcome to Jan-Kavach! I'm your AI assistant. How can I help you fight pollution today?",
       timestamp: new Date(),
     },
   ])
@@ -130,7 +130,7 @@ export function Chatbot() {
                   <Bot className="w-5 h-5 text-emerald" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-foreground text-sm">PolluFight Assistant</h3>
+                  <h3 className="font-semibold text-foreground text-sm">Jan-Kavach Assistant</h3>
                   <p className="text-xs text-emerald flex items-center gap-1">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald animate-pulse" />
                     Online
@@ -233,7 +233,7 @@ export function Chatbot() {
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && handleSend()}
-                  placeholder="Ask about PolluFight..."
+                  placeholder="Ask about Jan-Kavach..."
                   className="flex-1 bg-muted rounded-full px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-emerald/50"
                 />
                 <Button

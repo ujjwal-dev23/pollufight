@@ -28,7 +28,7 @@ export function LandingHeader({ onEnterTactical }: LandingHeaderProps) {
               <Activity className="w-5 h-5 text-white animate-heartbeat" />
               <div className="absolute inset-0 rounded-lg bg-emerald/50 animate-ping-ripple" />
             </div>
-            <span className="font-semibold text-lg text-foreground">PolluFight</span>
+            <span className="font-semibold text-lg text-foreground">Jan-Kavach</span>
           </div>
 
           {/* Desktop Navigation */}
