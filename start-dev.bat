@@ -6,18 +6,16 @@ if not exist "venv" (
     echo ⚠️  Virtual environment not found. Creating one...
     python -m venv venv
     call venv\Scripts\activate.bat
-    pip install -r requirements.txt
+    pip install -r unified_backend\requirements.txt
 ) else (
     call venv\Scripts\activate.bat
 )
 
-rem Start Python Backend in the background
-echo 🐍 Starting Pollution Detector Backend (Port 8000)...
-start "Pollution Detector Backend" cmd /k "python -m uvicorn sub_modules.pollution_detector.main:app --host 0.0.0.0 --port 8000"
-
-rem Start Policy Feedback Backend
-echo 🏛️  Starting Policy Feedback Backend (Port 8001)...
-start "Policy Feedback Backend" cmd /k "python -m uvicorn sub_modules.policy_feedback.backend.main:app --host 0.0.0.0 --port 8001"
+rem Start Unified Backend in the background
+echo 🚀 Starting Unified Backend (Port 8000)...
+echo    - Pollution Detection: /api/pollution/analyze
+echo    - Policy Feedback: /api/policy/analyze
+start "Unified Backend" cmd /k "python -m uvicorn unified_backend.main:app --host 0.0.0.0 --port 8000"
 
 rem Wait briefly
 timeout /t 2 /nobreak >nul

@@ -18,9 +18,19 @@ export interface AnalysisResult {
 
 import { getApiBaseUrl } from '../config/api';
 
-const API_URL = `${getApiBaseUrl(8000)}/analyze`;
+const API_URL = `${getApiBaseUrl(8000)}/api/pollution/analyze`;
 
-export async function analyzeImage(imageUrl: string, originalFilename?: string): Promise<AnalysisResult> {
+export async function analyzeImage(
+  imageUrl: string,
+  originalFilename?: string,
+  locationData?: {
+    city?: string;
+    state?: string;
+    zipcode?: string;
+    address?: string;
+  },
+  userName?: string
+): Promise<AnalysisResult> {
   try {
     console.log('Analyzing image via HTTP:', imageUrl);
 
@@ -28,6 +38,17 @@ export async function analyzeImage(imageUrl: string, originalFilename?: string):
     formData.append('image_url', imageUrl);
     if (originalFilename) {
       formData.append('original_filename', originalFilename);
+    }
+
+    if (locationData) {
+      if (locationData.city) formData.append('city', locationData.city);
+      if (locationData.state) formData.append('state', locationData.state);
+      if (locationData.zipcode) formData.append('zipcode', locationData.zipcode);
+      if (locationData.address) formData.append('address', locationData.address);
+    }
+
+    if (userName) {
+      formData.append('user_name', userName);
     }
 
     const response = await fetch(API_URL, {

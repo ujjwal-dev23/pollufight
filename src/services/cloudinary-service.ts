@@ -10,19 +10,33 @@ export async function uploadToCloudinary(file: File): Promise<string> {
   formData.append("file", file);
   formData.append("upload_preset", uploadPreset);
 
-  const response = await fetch(
-    `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
-    {
-      method: "POST",
-      body: formData,
+  // Set up 30-second timeout
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30000);
+
+  try {
+    const response = await fetch(
+      `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
+      {
+        method: "POST",
+        body: formData,
+        signal: controller.signal,
+      }
+    );
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(`Cloudinary upload failed: ${errorData.message || response.statusText || "Unknown error"}`);
     }
-  );
 
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(`Cloudinary upload failed: ${errorData.message || response.statusText}`);
+    const data = await response.json();
+    return data.secure_url;
+  } catch (error: any) {
+    if (error.name === 'AbortError') {
+      throw new Error("Upload timed out after 30 seconds. Please check your network connection.");
+    }
+    throw error;
   }
-
-  const data = await response.json();
-  return data.secure_url;
 }

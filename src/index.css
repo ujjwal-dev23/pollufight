@@ -1,12 +1,14 @@
-@import "tailwindcss";
 @import "tw-animate-css";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 .leaflet-container {
   height: 100%;
   width: 100%;
 }
 
-@custom-variant dark (&:is(.dark *));
+
 
 :root {
   /* Light mode - PolluFight Portal (Updated to dark-friendly civic-tech palette) */
@@ -36,6 +38,11 @@
   --emerald-light: oklch(0.75 0.15 165);
   --blue-accent: oklch(0.55 0.15 220);
   --cyan-accent: oklch(0.7 0.15 200);
+
+  /* Orange Theme vars */
+  --orange-primary: oklch(0.7 0.2 45);
+  --orange-glow: oklch(0.75 0.18 55);
+  --amber-accent: oklch(0.8 0.15 75);
 
   /* PolluFight tactical colors */
   --neon-green: oklch(0.75 0.25 165);
@@ -102,66 +109,13 @@
   --sidebar-ring: oklch(0.439 0 0);
 }
 
-@theme inline {
-  --font-sans: "Inter", "Inter Fallback", sans-serif;
-  --font-mono: "JetBrains Mono", "JetBrains Mono Fallback", monospace;
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-card: var(--card);
-  --color-card-foreground: var(--card-foreground);
-  --color-popover: var(--popover);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-primary: var(--primary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-secondary: var(--secondary);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-muted: var(--muted);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-destructive: var(--destructive);
-  --color-destructive-foreground: var(--destructive-foreground);
-  --color-border: var(--border);
-  --color-input: var(--input);
-  --color-ring: var(--ring);
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
 
-  --color-emerald: var(--emerald);
-  --color-emerald-light: var(--emerald-light);
-  --color-blue-accent: var(--blue-accent);
-  --color-cyan-accent: var(--cyan-accent);
-  --color-neon-green: var(--neon-green);
-  --color-neon-red: var(--neon-red);
-  --color-neon-yellow: var(--neon-yellow);
-  --color-neon-gold: var(--neon-gold);
-  --color-slate-dark: var(--slate-dark);
-  --color-slate-medium: var(--slate-medium);
-  --color-severity-low: var(--severity-low);
-  --color-severity-medium: var(--severity-medium);
-  --color-severity-high: var(--severity-high);
-  --color-severity-critical: var(--severity-critical);
-  --color-chart-1: var(--chart-1);
-  --color-chart-2: var(--chart-2);
-  --color-chart-3: var(--chart-3);
-  --color-chart-4: var(--chart-4);
-  --color-chart-5: var(--chart-5);
-  --color-sidebar: var(--sidebar);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-ring: var(--sidebar-ring);
-}
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply border-border;
   }
+
   body {
     @apply bg-background text-foreground;
   }
@@ -172,17 +126,20 @@
   0% {
     transform: rotate(0deg);
   }
+
   100% {
     transform: rotate(360deg);
   }
 }
 
 @keyframes float-particles {
+
   0%,
   100% {
     transform: translateY(0) translateX(0);
     opacity: 0.3;
   }
+
   50% {
     transform: translateY(-20px) translateX(10px);
     opacity: 0.6;
@@ -194,6 +151,7 @@
     transform: scale(0.8);
     opacity: 0.8;
   }
+
   100% {
     transform: scale(1.5);
     opacity: 0;
@@ -214,11 +172,13 @@
 
 /* Enhanced pulse animations */
 @keyframes pulse-glow {
+
   0%,
   100% {
     box-shadow: 0 0 5px currentColor, 0 0 10px currentColor;
     opacity: 1;
   }
+
   50% {
     box-shadow: 0 0 15px currentColor, 0 0 25px currentColor;
     opacity: 0.8;
@@ -226,11 +186,13 @@
 }
 
 @keyframes pulse-text {
+
   0%,
   100% {
     text-shadow: 0 0 5px currentColor;
     opacity: 1;
   }
+
   50% {
     text-shadow: 0 0 15px currentColor, 0 0 25px currentColor;
     opacity: 0.9;
@@ -239,19 +201,23 @@
 
 /* Heartbeat ping animation for Pulse icon */
 @keyframes heartbeat-ping {
+
   0%,
   100% {
     transform: scale(1);
     opacity: 1;
   }
+
   25% {
     transform: scale(1.15);
     opacity: 0.9;
   }
+
   50% {
     transform: scale(1);
     opacity: 1;
   }
+
   75% {
     transform: scale(1.1);
     opacity: 0.95;
@@ -263,6 +229,7 @@
     transform: scale(1);
     opacity: 0.6;
   }
+
   100% {
     transform: scale(2.5);
     opacity: 0;
@@ -274,6 +241,7 @@
   0% {
     background-position: -200% center;
   }
+
   100% {
     background-position: 200% center;
   }
@@ -284,9 +252,11 @@
   0% {
     filter: brightness(1) saturate(1);
   }
+
   50% {
     filter: brightness(1.3) saturate(1.2);
   }
+
   100% {
     filter: brightness(1) saturate(1);
   }
@@ -298,9 +268,11 @@
     border-color: var(--neon-green);
     box-shadow: 0 0 0 0 var(--neon-green);
   }
+
   50% {
     box-shadow: 0 0 15px 3px var(--neon-green);
   }
+
   100% {
     border-color: var(--border);
     box-shadow: 0 0 0 0 transparent;
@@ -312,6 +284,7 @@
   0% {
     stroke-dashoffset: 24;
   }
+
   100% {
     stroke-dashoffset: 0;
   }
@@ -323,6 +296,7 @@
     transform: translateX(-100%);
     opacity: 0;
   }
+
   100% {
     transform: translateX(0);
     opacity: 1;
@@ -338,10 +312,12 @@
 
 /* Laser scan animation */
 @keyframes laser-scan {
+
   0%,
   100% {
     top: 10%;
   }
+
   50% {
     top: 90%;
   }
@@ -353,6 +329,7 @@
     transform: translateY(100%);
     opacity: 0;
   }
+
   100% {
     transform: translateY(0);
     opacity: 1;
@@ -362,20 +339,24 @@
 /* Added animate-ui inspired floating and glow animations */
 /* Floating animation for icons */
 @keyframes float {
+
   0%,
   100% {
     transform: translateY(0);
   }
+
   50% {
     transform: translateY(-8px);
   }
 }
 
 @keyframes float-slow {
+
   0%,
   100% {
     transform: translateY(0) rotate(0deg);
   }
+
   50% {
     transform: translateY(-12px) rotate(2deg);
   }
@@ -383,10 +364,12 @@
 
 /* Glow pulse for icons on hover */
 @keyframes icon-glow {
+
   0%,
   100% {
     filter: drop-shadow(0 0 2px currentColor);
   }
+
   50% {
     filter: drop-shadow(0 0 12px currentColor) drop-shadow(0 0 20px currentColor);
   }
@@ -398,13 +381,16 @@
     transform: translateY(100vh) translateX(0) scale(0);
     opacity: 0;
   }
+
   10% {
     opacity: 0.6;
     transform: translateY(90vh) translateX(10px) scale(1);
   }
+
   90% {
     opacity: 0.4;
   }
+
   100% {
     transform: translateY(-10vh) translateX(-20px) scale(0.5);
     opacity: 0;
@@ -416,13 +402,16 @@
     transform: translateY(-10vh) translateX(0) scale(0);
     opacity: 0;
   }
+
   10% {
     opacity: 0.5;
     transform: translateY(0vh) translateX(-10px) scale(1);
   }
+
   90% {
     opacity: 0.3;
   }
+
   100% {
     transform: translateY(100vh) translateX(20px) scale(0.5);
     opacity: 0;
@@ -434,9 +423,11 @@
   0% {
     background-position: 0% 50%;
   }
+
   50% {
     background-position: 100% 50%;
   }
+
   100% {
     background-position: 0% 50%;
   }
@@ -448,10 +439,12 @@
     transform: translateX(-100%) scaleX(0);
     opacity: 0;
   }
+
   50% {
     transform: translateX(0%) scaleX(1);
     opacity: 0.3;
   }
+
   100% {
     transform: translateX(100%) scaleX(0);
     opacity: 0;
@@ -463,6 +456,7 @@
   0% {
     transform: rotate(0deg) translateX(40px) rotate(0deg);
   }
+
   100% {
     transform: rotate(360deg) translateX(40px) rotate(-360deg);
   }
@@ -509,25 +503,30 @@
 .hover-bounce:hover {
   animation: icon-bounce 0.5s ease-in-out;
 }
+
 /* End animate-ui animations */
 
 /* Subtle icon bounce animation */
 @keyframes icon-bounce {
+
   0%,
   100% {
     transform: translateY(0);
   }
+
   50% {
     transform: translateY(-3px);
   }
 }
 
 @keyframes icon-pulse {
+
   0%,
   100% {
     opacity: 1;
     transform: scale(1);
   }
+
   50% {
     opacity: 0.8;
     transform: scale(1.05);
@@ -604,9 +603,11 @@
     opacity: 0;
     transform: scale(1.05);
   }
+
   50% {
     opacity: 0.5;
   }
+
   100% {
     opacity: 1;
     transform: scale(1);
@@ -617,6 +618,7 @@
   0% {
     transform: translateY(-100%);
   }
+
   100% {
     transform: translateY(100vh);
   }

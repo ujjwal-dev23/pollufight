@@ -4,50 +4,52 @@ import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { AlertTriangle } from "lucide-react"
 
-const alerts = [
-  {
-    id: 1,
-    message: "Illegal factory discharge detected in Udyog Vihar...",
-    time: "2m ago",
-    severity: "high",
-  },
-  {
-    id: 2,
-    message: "Vehicle emission violation near Cyber City toll...",
-    time: "15m ago",
-    severity: "medium",
-  },
-  {
-    id: 3,
-    message: "Construction dust exceeds limits at Sector 45...",
-    time: "1h ago",
-    severity: "low",
-  },
-]
+import { db } from "@/lib/firebase"
+import { collection, onSnapshot, query, orderBy, limit } from "firebase/firestore"
+
+interface AlertItem {
+  id: string
+  message: string
+  time: string
+  severity: "critical" | "high" | "medium" | "low"
+}
 
 export function AlertFeed() {
-  const [visibleAlerts, setVisibleAlerts] = useState<typeof alerts>([])
+  const [visibleAlerts, setVisibleAlerts] = useState<AlertItem[]>([])
 
   useEffect(() => {
-    const timeouts: NodeJS.Timeout[] = []
+    const q = query(
+      collection(db, "pollution_reports"),
+      orderBy("timestamp", "desc"),
+      limit(5)
+    )
 
-    // Clear existing for safety
-    setVisibleAlerts([])
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const newAlerts: AlertItem[] = snapshot.docs.map(doc => {
+        const data = doc.data()
+        const timestamp = data.timestamp?.toDate()
+        let timeStr = "Just now"
 
-    alerts.forEach((alert, index) => {
-      const timeout = setTimeout(() => {
-        setVisibleAlerts((prev) => {
-          // Prevent duplicates incase of race conditions
-          if (prev.some(a => a.id === alert.id)) return prev
-          return [...prev, alert]
-        })
-      }, index * 400)
-      timeouts.push(timeout)
+        if (timestamp) {
+          const diff = Math.floor((Date.now() - timestamp.getTime()) / 60000)
+          if (diff < 1) timeStr = "Just now"
+          else if (diff < 60) timeStr = `${diff}m ago`
+          else if (diff < 1440) timeStr = `${Math.floor(diff / 60)}h ago`
+          else timeStr = `${Math.floor(diff / 1440)}d ago`
+        }
+
+        return {
+          id: doc.id,
+          message: `${data.site || "Pollution detected"} reported...`,
+          time: timeStr,
+          severity: (data.severity as any) || "high"
+        }
+      })
+
+      setVisibleAlerts(newAlerts)
     })
 
-    return () => {
-      timeouts.forEach((t) => clearTimeout(t))
-    }
+    return () => unsubscribe()
   }, [])
 
   return (
@@ -61,11 +63,13 @@ export function AlertFeed() {
             initial={{ x: "-100%", opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
             transition={{ type: "spring", stiffness: 100, damping: 15 }}
-            className={`flex items-start gap-3 p-3 rounded-lg border bg-card/30 backdrop-blur-sm ${alert.severity === "high" ? "border-neon-red/50 shadow-[0_0_15px_rgba(255,68,68,0.15)]" : "border-border"
+            className={`flex items-start gap-3 p-3 rounded-lg border bg-card/30 backdrop-blur-sm ${alert.severity === "critical" || alert.severity === "high"
+                ? "border-neon-red/50 shadow-[0_0_15px_rgba(255,68,68,0.15)]"
+                : "border-border"
               }`}
           >
             <div
-              className={`p-1.5 rounded-full ${alert.severity === "high"
+              className={`p-1.5 rounded-full ${alert.severity === "critical" || alert.severity === "high"
                   ? "bg-neon-red/20 text-neon-red animate-pulse-glow"
                   : alert.severity === "medium"
                     ? "bg-neon-yellow/20 text-neon-yellow"

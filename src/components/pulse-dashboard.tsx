@@ -1,18 +1,21 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { Activity, MessageSquare, Lightbulb, TrendingUp, AlertCircle, BarChart3, Fingerprint, RefreshCw, MapPin, Factory } from "lucide-react"
+import { Activity, MessageSquare, Lightbulb, TrendingUp, AlertCircle, BarChart3, Fingerprint, RefreshCw, MapPin, Factory, Wind } from "lucide-react"
+import { collection, onSnapshot, query } from "firebase/firestore"
+import { db } from "@/lib/firebase"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 // import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs" // Removed unused import
-import { analyzeComments, type DashboardReport, DEMO_COMMENTS } from "@/services/policy-service"
+import { analyzeComments, type DashboardReport } from "@/services/policy-service"
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, Cell } from "recharts"
 
 import { CriticalGauge } from "./critical-gauge"
 import { StatCard } from "./stat-card"
 import { AlertFeed } from "./alert-feed"
+import { NewsSection } from "./news-section"
 
 const COLORS = ['#22c55e', '#64748b', '#ef4444']; // green, slate, red
 
@@ -20,13 +23,81 @@ export function PulseDashboard() {
   const [report, setReport] = useState<DashboardReport | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [aqiData, setAqiData] = useState<{ value: number; city: string } | null>(null)
+  const [loadingAqi, setLoadingAqi] = useState(true)
+  const [stats, setStats] = useState({ totalReports: 0, activeSites: 0 })
+
+  useEffect(() => {
+    fetchLiveAqi()
+
+    // Real-time listener for reports
+    const q = query(collection(db, "pollution_reports"))
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const reports = snapshot.docs.map(doc => doc.data())
+
+      // Calculate Radius Reports (Total reports)
+      const total = reports.length
+
+      // Calculate Active Sites (High/Critical/Medium severity - Red/Yellow)
+      const active = reports.filter(r =>
+        r.severity === "high" ||
+        r.severity === "critical" ||
+        r.severity === "medium" ||
+        // Also check confidence levels if severity is not explicitly set
+        (r.confidence > 0.6 && !r.severity)
+      ).length
+
+      setStats({
+        totalReports: total,
+        activeSites: active
+      })
+    })
+
+    return () => unsubscribe()
+  }, [])
+
+  const fetchLiveAqi = async () => {
+    setLoadingAqi(true)
+    try {
+      // 1. Get Geolocation
+      const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject)
+      })
+
+      const { latitude, longitude } = pos.coords
+
+      // 2. Fetch from Open-Meteo Air Quality API (Token-free and accurate)
+      const aqiPromise = fetch(`https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${latitude}&longitude=${longitude}&current=us_aqi`)
+
+      // 3. Fetch City Name via our backend proxy
+      const geoPromise = fetch(`http://localhost:8000/api/pollution/geodecode?lat=${latitude}&lon=${longitude}`)
+
+      const [aqiRes, geoRes] = await Promise.all([aqiPromise, geoPromise])
+      const aqiDataRes = await aqiRes.json()
+      const geoData = await geoRes.json()
+
+      const city = geoData.address?.city || geoData.address?.town || geoData.address?.village || "Current Location"
+      const aqiValue = aqiDataRes.current.us_aqi
+
+      setAqiData({
+        value: Math.round(aqiValue),
+        city: city
+      })
+    } catch (err) {
+      console.warn("Failed to fetch live AQI, falling back to demo data:", err)
+      // Fallback to a realistic demo value if API or Geo fails
+      setAqiData({ value: 164, city: "Current Location" })
+    } finally {
+      setLoadingAqi(false)
+    }
+  }
 
   const handleAnalyze = async () => {
     setLoading(true)
     setError(null)
     try {
       // Use demo comments for now as per plan
-      const result = await analyzeComments(DEMO_COMMENTS)
+      const result = await analyzeComments()
       setReport(result)
     } catch (err) {
       setError(`Failed to connect to Policy Engine: ${err instanceof Error ? err.message : String(err)}`)
@@ -39,19 +110,38 @@ export function PulseDashboard() {
   return (
     <div className="p-4 space-y-6 max-w-4xl mx-auto pb-24">
       {/* --- Original Pulse Content --- */}
-      <h2 className="text-xl font-bold tracking-tight mb-4">Pollution Monitor</h2>
+      <div className="flex justify-between items-end mb-4">
+        <h2 className="text-xl font-bold tracking-tight">Pollution Monitor</h2>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={fetchLiveAqi}
+          disabled={loadingAqi}
+          className="text-[10px] font-mono tracking-widest text-muted-foreground hover:text-primary"
+        >
+          <RefreshCw className={`w-3 h-3 mr-2 ${loadingAqi ? 'animate-spin' : ''}`} />
+          REFRESH LIVE DATA
+        </Button>
+      </div>
+
       {/* Critical Gauge */}
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="flex justify-center">
-        <CriticalGauge value={78} />
+      <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="flex justify-center py-4">
+        {loadingAqi ? (
+          <div className="w-[220px] h-[220px] rounded-full border-4 border-dashed border-primary/20 animate-spin-slow flex items-center justify-center">
+            <Wind className="w-8 h-8 text-primary/40 animate-pulse" />
+          </div>
+        ) : (
+          <CriticalGauge value={aqiData?.value || 0} city={aqiData?.city} />
+        )}
       </motion.div>
 
       {/* Stats Grid */}
       <div className="grid grid-cols-2 gap-4">
         <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.1 }}>
-          <StatCard label="RADIUS REPORTS" value={12} icon={MapPin} variant="default" />
+          <StatCard label="RADIUS REPORTS" value={stats.totalReports} icon={MapPin} variant="default" />
         </motion.div>
         <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }}>
-          <StatCard label="ACTIVE SITES" value={4} icon={Factory} variant="warning" />
+          <StatCard label="ACTIVE SITES" value={stats.activeSites} icon={Factory} variant="warning" />
         </motion.div>
       </div>
 
@@ -162,7 +252,7 @@ export function PulseDashboard() {
                         />
                         <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={30}>
                           {
-                            [0, 1, 2].map((entry, index) => (
+                            [0, 1, 2].map((_, index) => (
                               <Cell key={`cell-${index}`} fill={COLORS[index]} />
                             ))
                           }
@@ -244,6 +334,17 @@ export function PulseDashboard() {
           )}
         </AnimatePresence>
       </div>
+
+      {/* Live Pollution News Section */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
+        transition={{ delay: 0.2 }}
+        className="pt-8 border-t border-border/40"
+      >
+        <NewsSection />
+      </motion.div>
     </div>
   )
 }

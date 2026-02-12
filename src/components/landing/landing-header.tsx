@@ -2,8 +2,10 @@
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Menu, X, Camera, Map, Wallet, Activity } from "lucide-react"
+import { Menu, X, Camera, Map, Wallet, Activity, LogOut, User, LogIn } from "lucide-react"
 import type { TacticalTab } from "@/App"
+import { useAuth } from "@/context/AuthContext"
+import { AuthModal } from "../AuthModal"
 
 interface LandingHeaderProps {
   onEnterTactical: (tab?: TacticalTab) => void
@@ -11,6 +13,8 @@ interface LandingHeaderProps {
 
 export function LandingHeader({ onEnterTactical }: LandingHeaderProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
+  const { user, logout } = useAuth()
 
   const navLinks = [
     { label: "AI Lens", href: "#", icon: Camera, tab: "ai-lens" as TacticalTab },
@@ -50,12 +54,37 @@ export function LandingHeader({ onEnterTactical }: LandingHeaderProps) {
 
           {/* Desktop Actions */}
           <div className="hidden md:flex items-center gap-3">
-            <Button variant="outline" size="sm" onClick={() => onEnterTactical("ai-lens")}>
-              Scan Now
-            </Button>
+            {user ? (
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald/10 border border-emerald/20">
+                  <User className="w-4 h-4 text-emerald" />
+                  <span className="text-xs font-mono font-bold text-emerald">{user.displayName || "OFFICER"}</span>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => logout()}
+                  className="text-muted-foreground hover:text-red-400 hover:bg-red-400/10 transition-colors"
+                >
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Sign Out
+                </Button>
+              </div>
+            ) : (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsAuthModalOpen(true)}
+                className="border-border text-foreground hover:bg-emerald/5 hover:border-emerald/50"
+              >
+                <LogIn className="w-4 h-4 mr-2" />
+                Sign In
+              </Button>
+            )}
+
             <Button
               size="sm"
-              className="bg-emerald hover:bg-emerald/90 text-white"
+              className="bg-emerald hover:bg-emerald/90 text-white shadow-[0_0_15px_rgba(16,185,129,0.3)]"
               onClick={() => onEnterTactical("pulse")}
             >
               Dashboard
@@ -89,15 +118,41 @@ export function LandingHeader({ onEnterTactical }: LandingHeaderProps) {
                 )
               })}
               <div className="flex flex-col gap-2 pt-3 border-t border-border">
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setMobileMenuOpen(false)
-                    onEnterTactical("ai-lens")
-                  }}
-                >
-                  Scan Now
-                </Button>
+                {user ? (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-3 p-3 rounded-lg bg-emerald/10 border border-emerald/20">
+                      <User className="w-5 h-5 text-emerald" />
+                      <div className="flex flex-col">
+                        <span className="text-xs font-mono text-muted-foreground uppercase tracking-widest leading-none mb-1">Authenticated Officer</span>
+                        <span className="text-sm font-bold text-emerald">{user.displayName || "Unknown"}</span>
+                      </div>
+                    </div>
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start text-red-400 hover:bg-red-400/5 hover:text-red-400 border-red-400/20"
+                      onClick={() => {
+                        setMobileMenuOpen(false)
+                        logout()
+                      }}
+                    >
+                      <LogOut className="w-4 h-4 mr-2" />
+                      Sign Out
+                    </Button>
+                  </div>
+                ) : (
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start"
+                    onClick={() => {
+                      setMobileMenuOpen(false)
+                      setIsAuthModalOpen(true)
+                    }}
+                  >
+                    <LogIn className="w-4 h-4 mr-2" />
+                    Sign In
+                  </Button>
+                )}
+
                 <Button
                   className="bg-emerald hover:bg-emerald/90 text-white"
                   onClick={() => {
@@ -112,6 +167,7 @@ export function LandingHeader({ onEnterTactical }: LandingHeaderProps) {
           </div>
         )}
       </div>
+      <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
     </header>
   )
 }

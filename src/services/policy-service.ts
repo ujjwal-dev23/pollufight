@@ -27,9 +27,11 @@ export interface DashboardReport {
   innovation_spotter: Innovation[];
 }
 
+import { db } from '../lib/firebase';
+import { collection, query, orderBy, limit, getDocs } from 'firebase/firestore';
 import { getApiBaseUrl } from '../config/api';
 
-const API_URL = `${getApiBaseUrl(8001)}/analyze`;
+const API_URL = `${getApiBaseUrl(8000)}/api/policy/analyze`;
 
 export const DEMO_COMMENTS = [
   "The smoke from the Northside chemical plant is getting unbearable on Tuesday mornings. My kids have started coughing more.",
@@ -54,7 +56,34 @@ export const DEMO_COMMENTS = [
   "We should have a public dashboard (like this one!) where we can see the factory's daily compliance scores."
 ];
 
-export async function analyzeComments(comments: string[] = DEMO_COMMENTS): Promise<DashboardReport> {
+export async function getRealComments(): Promise<string[]> {
+  try {
+    const commentsCol = collection(db, 'comments');
+    const q = query(commentsCol, orderBy('timestamp', 'desc'), limit(50));
+    const querySnapshot = await getDocs(q);
+    const comments = querySnapshot.docs.map(doc => doc.data().text as string).filter(Boolean);
+    return comments;
+  } catch (error) {
+    console.error('Error fetching real comments:', error);
+    return [];
+  }
+}
+
+export async function analyzeComments(comments?: string[]): Promise<DashboardReport> {
+  let commentsToAnalyze = comments;
+
+  // If no comments provided, try to get real ones
+  if (!commentsToAnalyze || commentsToAnalyze.length === 0) {
+    const realComments = await getRealComments();
+    if (realComments.length > 0) {
+      console.log(`Analyzing ${realComments.length} real comments from Firestore.`);
+      commentsToAnalyze = realComments;
+    } else {
+      console.log('No real comments found, falling back to demo data.');
+      commentsToAnalyze = DEMO_COMMENTS;
+    }
+  }
+
   try {
     console.log('Sending policy analysis request to:', API_URL);
     const response = await fetch(API_URL, {
@@ -62,7 +91,7 @@ export async function analyzeComments(comments: string[] = DEMO_COMMENTS): Promi
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ comments }),
+      body: JSON.stringify({ comments: commentsToAnalyze }),
     });
 
     if (!response.ok) {

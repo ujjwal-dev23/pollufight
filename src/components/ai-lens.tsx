@@ -1,11 +1,18 @@
 "use client"
 
+import { openUrl } from "@tauri-apps/plugin-opener"
 import { useState, useRef, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { Camera, RotateCcw, Upload, FileText, Activity, AlertTriangle, CheckCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { uploadToCloudinary } from "@/services/cloudinary-service"
 import { analyzeImage, type AnalysisResult } from "@/services/pollution-service"
+import { getApiBaseUrl } from "@/config/api"
+import { db } from "@/lib/firebase"
+import { awardCredits } from "@/services/wallet-service"
+import { getUserId } from "@/lib/user-id"
+import { useAuth } from "@/context/AuthContext"
+import { AuthModal } from "./AuthModal"
 
 type LensState = "capture" | "uploading" | "analyzing" | "verified" | "error"
 
@@ -16,10 +23,57 @@ const DEMO_KEYWORDS = [
 ];
 
 export function AILens() {
+
+  const getDeviceLocation = (): Promise<{ lat: number; lon: number } | null> => {
+    return new Promise((resolve) => {
+      if (!navigator.geolocation) {
+        resolve(null);
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          resolve({
+            lat: position.coords.latitude,
+            lon: position.coords.longitude
+          });
+        },
+        (error) => {
+          console.error("Geolocation error:", error);
+          resolve(null);
+        },
+        { timeout: 10000 }
+      );
+    });
+  };
+
+  const reverseGeocode = async (lat: number, lon: number) => {
+    try {
+      const baseUrl = getApiBaseUrl(8000);
+      const response = await fetch(
+        `${baseUrl}/api/pollution/geodecode?lat=${lat}&lon=${lon}`
+      );
+      const data = await response.json();
+      const address = data.address || {};
+      return {
+        city: address.city || address.town || address.village || address.suburb || "Delhi",
+        state: address.state || "Delhi",
+        zipcode: address.postcode || "110001",
+        address: data.display_name || "New Delhi, India",
+        lat,
+        lon
+      };
+    } catch (error) {
+      console.error("Reverse geocoding error:", error);
+      return null;
+    }
+  };
+
+  const { user } = useAuth()
   const [state, setState] = useState<LensState>("capture")
   const [progress, setProgress] = useState(0)
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null)
   const [errorMsg, setErrorMsg] = useState<string>("")
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Handle file selection from input
@@ -44,6 +98,15 @@ export function AILens() {
       const isDemo = DEMO_KEYWORDS.some(keyword => filename.includes(keyword));
 
       let imageUrl = "skipped";
+      let capturedLocation = null;
+
+      // Start getting location in parallel with upload/prep
+      const locPromise = getDeviceLocation().then(async (coords) => {
+        if (coords) {
+          return await reverseGeocode(coords.lat, coords.lon);
+        }
+        return null;
+      });
 
       if (!isDemo) {
         setState("uploading")
@@ -61,9 +124,46 @@ export function AILens() {
 
       setState("analyzing")
 
+      // Wait for location to finish if it hasn't already
+      capturedLocation = await locPromise;
+
       // Analyze with Pollution Detector
-      const result = await analyzeImage(imageUrl, file.name)
+      const result = await analyzeImage(
+        imageUrl,
+        file.name,
+        capturedLocation || undefined,
+        user?.displayName || "Officer"
+      )
       setAnalysisResult(result)
+
+      // Save to Firestore for mapping (GUILTY MAP)
+      if (result.pollution_type !== "No obvious pollution detected" && result.pollution_type !== "Error") {
+        try {
+          // Award credits for high confidence reports
+          if (result.confidence_level > 0.8) {
+            console.log("High confidence detection (>80%). Awarding 50 credits!");
+            await awardCredits(50, user?.uid);
+          }
+
+          const { addDoc, collection, serverTimestamp } = await import("firebase/firestore");
+          await addDoc(collection(db, "pollution_reports"), {
+            userId: user?.uid || getUserId(), // Associate report with the user (Auth UID or Guest ID)
+            latitude: capturedLocation?.lat || 28.4595, // Fallback to Gurgaon if GPS fails
+            longitude: capturedLocation?.lon || 77.0266,
+            type: result.pollution_type.includes("Industrial") ? "Industrial" :
+              result.pollution_type.includes("Vehicle") ? "Industrial" : "Construction", // Simplified categorization for map filter
+            site: result.pollution_type,
+            status: "detected", // Initial status as requested
+            severity: "critical", // Just detected = critical/red as per logic
+            timestamp: serverTimestamp(),
+            imageUrl: imageUrl
+          });
+          console.log("Incident pinned to map successfully.");
+        } catch (fError) {
+          console.error("Failed to pin incident to map:", fError);
+        }
+      }
+
       setProgress(100)
 
       setState("verified")
@@ -94,11 +194,27 @@ export function AILens() {
       />
 
       <AnimatePresence mode="wait">
-        {state === "capture" && <CaptureView key="capture" onCapture={handleCameraCapture} onUpload={handleUploadClick} />}
-        {(state === "uploading" || state === "analyzing") && <ProcessingView key="processing" state={state} progress={progress} />}
-        {state === "verified" && analysisResult && <ResultView key="result" result={analysisResult} onReset={handleReset} />}
-        {state === "error" && <ErrorView key="error" message={errorMsg} onRetry={handleReset} />}
+        {!user ? (
+          <LoginRequiredView key="login-required" onLogin={() => setIsAuthModalOpen(true)} />
+        ) : (
+          <>
+            {state === "capture" && <CaptureView key="capture" onCapture={handleCameraCapture} onUpload={handleUploadClick} />}
+            {(state === "uploading" || state === "analyzing") && <ProcessingView key="processing" state={state} progress={progress} />}
+            {state === "verified" && analysisResult && (
+              <ResultView
+                key="result"
+                result={analysisResult}
+                onReset={handleReset}
+                isGuest={!user}
+                onAuthClick={() => setIsAuthModalOpen(true)}
+              />
+            )}
+            {state === "error" && <ErrorView key="error" message={errorMsg} onRetry={handleReset} />}
+          </>
+        )}
       </AnimatePresence>
+
+      <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
     </div>
   )
 }
@@ -161,13 +277,31 @@ function CaptureView({ onCapture, onUpload }: { onCapture: (file: File) => void;
     if (videoRef.current && canvasRef.current) {
       const video = videoRef.current
       const canvas = canvasRef.current
-      // Set canvas dimensions to match video stream
-      canvas.width = video.videoWidth
-      canvas.height = video.videoHeight
+
+      // Target dimensions (Full HD style optimization)
+      const MAX_DIM = 1080
+      let width = video.videoWidth
+      let height = video.videoHeight
+
+      // Calculate scale to fit within MAX_DIM while maintaining aspect ratio
+      if (width > MAX_DIM || height > MAX_DIM) {
+        if (width > height) {
+          height = Math.round((height * MAX_DIM) / width)
+          width = MAX_DIM
+        } else {
+          width = Math.round((width * MAX_DIM) / height)
+          height = MAX_DIM
+        }
+      }
+
+      // Set canvas dimensions to optimized size
+      canvas.width = width
+      canvas.height = height
 
       const ctx = canvas.getContext('2d')
       if (ctx) {
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+        // Draw the current video frame into the downscaled canvas
+        ctx.drawImage(video, 0, 0, width, height)
         canvas.toBlob((blob) => {
           if (blob) {
             const file = new File([blob], `capture-${Date.now()}.jpg`, { type: "image/jpeg" })
@@ -299,7 +433,30 @@ function ProcessingView({ state, progress }: { state: string; progress: number }
   )
 }
 
-function ResultView({ result, onReset }: { result: AnalysisResult; onReset: () => void }) {
+function ResultView({
+  result,
+  onReset,
+  isGuest,
+  onAuthClick
+}: {
+  result: AnalysisResult;
+  onReset: () => void;
+  isGuest: boolean;
+  onAuthClick: () => void;
+}) {
+  const handleEmailClick = async () => {
+    const recipient = "thenobleonevision070@gmail.com";
+    const subject = encodeURIComponent(`Official Complaint: ${result.pollution_type}`);
+    const body = encodeURIComponent(result.legal_draft);
+    const maillink = `mailto:${recipient}?subject=${subject}&body=${body}`;
+    if ((window as any).__TAURI_INTERNALS__) {
+      await openUrl(maillink);
+    }
+    else {
+      window.location.href = maillink;
+    }
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }}
@@ -318,6 +475,27 @@ function ResultView({ result, onReset }: { result: AnalysisResult; onReset: () =
       </div>
 
       <div className="space-y-4 mb-6">
+        {isGuest && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="p-3 bg-primary/10 border border-primary/20 rounded-xl flex items-center justify-between"
+          >
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-primary" />
+              <p className="text-[10px] font-mono text-primary uppercase font-bold">Unauthenticated Session</p>
+            </div>
+            <Button
+              variant="link"
+              size="sm"
+              onClick={onAuthClick}
+              className="text-[10px] h-auto p-0 font-bold"
+            >
+              LOG IN TO EARN +50 CREDITS
+            </Button>
+          </motion.div>
+        )}
+
         <div className="p-4 bg-card border border-border rounded-xl space-y-2">
           <span className="text-xs uppercase tracking-widest text-muted-foreground font-mono">Detected Pollution</span>
           <div className="flex justify-between items-end">
@@ -356,7 +534,7 @@ function ResultView({ result, onReset }: { result: AnalysisResult; onReset: () =
       </div>
 
       <div className="mt-auto pt-4 space-y-3">
-        <Button onClick={() => { }} className="w-full bg-neon-green text-background hover:bg-neon-green/90 font-mono tracking-wider">
+        <Button onClick={handleEmailClick} className="w-full bg-neon-green text-background hover:bg-neon-green/90 font-mono tracking-wider">
           <FileText className="w-4 h-4 mr-2" />
           FILE OFFICIAL COMPLAINT
         </Button>
@@ -364,6 +542,44 @@ function ResultView({ result, onReset }: { result: AnalysisResult; onReset: () =
           <RotateCcw className="w-4 h-4 mr-2" />
           ANALYZE NEW IMAGE
         </Button>
+      </div>
+    </motion.div>
+  )
+}
+
+function LoginRequiredView({ onLogin }: { onLogin: () => void }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="flex-1 flex flex-col items-center justify-center p-8 text-center space-y-6"
+    >
+      <div className="relative">
+        <div className="absolute inset-0 bg-primary/20 blur-2xl rounded-full" />
+        <div className="relative bg-card/50 border border-primary/30 p-6 rounded-2xl">
+          <AlertTriangle className="w-12 h-12 text-primary mx-auto mb-4" />
+          <h2 className="text-2xl font-bold font-mono tracking-tighter text-foreground">RESTRICTED ACCESS</h2>
+        </div>
+      </div>
+
+      <div className="space-y-4 max-w-xs">
+        <p className="text-sm text-muted-foreground font-mono leading-relaxed">
+          AI Monitoring and Legal Drafting require an authorized officer session.
+          Please initialize your credentials to proceed.
+        </p>
+
+        <Button
+          onClick={onLogin}
+          className="w-full h-12 bg-primary text-primary-foreground font-mono tracking-widest hover:bg-primary/90 shadow-[0_0_20px_rgba(var(--primary),0.3)]"
+        >
+          INITIALIZE SESSION
+        </Button>
+      </div>
+
+      <div className="flex items-center gap-2 pt-8 opacity-40">
+        <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+        <span className="text-[10px] font-mono tracking-widest">ENCRYPTED LENS READY</span>
       </div>
     </motion.div>
   )

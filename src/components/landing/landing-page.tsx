@@ -12,6 +12,7 @@ import { TechStackSection } from "./tech-stack-section"
 import { LandingFooter } from "./landing-footer"
 import { Chatbot } from "@/components/chatbot"
 import { AnimatedBackground } from "@/components/animated-background"
+import { VoiceMatter } from "./voice-matter"
 
 interface LandingPageProps {
   onEnterTactical: (tab?: TacticalTab) => void
@@ -25,6 +26,7 @@ export function LandingPage({ onEnterTactical }: LandingPageProps) {
         <LandingHeader onEnterTactical={onEnterTactical} />
         <main>
           <HeroSection onEnterTactical={onEnterTactical} />
+          <VoiceMatter />
           <ImpactStats />
           <HowItWorks />
           <FeaturesSection />

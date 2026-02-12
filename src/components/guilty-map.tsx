@@ -8,7 +8,7 @@ import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet"
 import "leaflet/dist/leaflet.css"
 import L from "leaflet"
 import { db } from "@/lib/firebase"
-import { collection, getDocs, QueryDocumentSnapshot } from "firebase/firestore"
+import { collection, onSnapshot } from "firebase/firestore"
 
 // Fix for Leaflet default icon issues in React
 import icon from "leaflet/dist/images/marker-icon.png"
@@ -59,34 +59,33 @@ export function GuiltyMap() {
   const [violations, setViolations] = useState<PollutionReport[]>(demoViolations)
 
   useEffect(() => {
-    const fetchReports = async () => {
-      try {
-        const querySnapshot = await getDocs(collection(db, "pollution_reports"))
-        const fetchedReports: PollutionReport[] = []
-        querySnapshot.forEach((doc: QueryDocumentSnapshot) => {
-          const data = doc.data()
-          if (data.latitude && data.longitude) {
-            fetchedReports.push({
-              id: doc.id,
-              lat: data.latitude,
-              lng: data.longitude,
-              type: data.type || "Industrial",
-              label: data.site || "Reported Site",
-              status: (data.status as any) || "detected",
-              severity: "high", // Default severity as it's not in the schema provided
-            })
-          }
-        })
-        setViolations([...demoViolations, ...fetchedReports])
-      } catch (error) {
-        console.error("Error fetching pollution reports: ", error)
-      }
-    }
+    const reportsCol = collection(db, "pollution_reports")
 
-    fetchReports()
+    // Use onSnapshot for real-time updates
+    const unsubscribe = onSnapshot(reportsCol, (querySnapshot) => {
+      const fetchedReports: PollutionReport[] = []
+      querySnapshot.forEach((doc) => {
+        const data = doc.data()
+        if (data.latitude && data.longitude) {
+          fetchedReports.push({
+            id: doc.id,
+            lat: data.latitude,
+            lng: data.longitude,
+            type: data.type || "Industrial",
+            label: data.site || "Reported Site",
+            status: (data.status as any) || "detected",
+            severity: (data.severity as any) || "high",
+          })
+        }
+      })
+      setViolations([...demoViolations, ...fetchedReports])
+    })
 
     const timer = setTimeout(() => setShowBanner(true), 1000)
-    return () => clearTimeout(timer)
+    return () => {
+      unsubscribe()
+      clearTimeout(timer)
+    }
   }, [])
 
   const filteredViolations = violations.filter((v) => filter === "all" || v.type === filter)
